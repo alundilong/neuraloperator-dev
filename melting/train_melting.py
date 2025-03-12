@@ -82,8 +82,8 @@ train_loader, test_loaders, data_processor = load_melting_dataset(data_root = da
     test_resolutions=config.data.test_resolutions,
     n_tests=config.data.n_tests,
     test_batch_sizes=config.data.test_batch_sizes,
-    encode_input=True,
-    encode_output=True,
+    encode_input=config.data.encode_input,
+    encode_output=config.data.encode_output,
 )
 model = get_model(config)
 
