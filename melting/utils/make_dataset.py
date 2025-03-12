@@ -33,7 +33,7 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
 
     # Convert to PyTorch tensor
     tensor_x = torch.tensor(data_x_reshaped, dtype=torch.float32)
-    tensor_x = tensor_x.permute(0, 4, 3, 2, 1)
+    tensor_x = tensor_x.permute(0, 4, 2, 3, 1)
     #print(tensor_x[0,2,:50,:50,0])
 
     # Load output data (y.dat)
@@ -51,7 +51,7 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
 
     # Convert to PyTorch tensor
     tensor_y = torch.tensor(data_y_reshaped, dtype=torch.float32)
-    tensor_y = tensor_y.permute(0, 4, 3, 2, 1)
+    tensor_y = tensor_y.permute(0, 4, 2, 3, 1)
 
     # Shuffle dataset (shuffle indices in batch dimension)
     indices = torch.randperm(num_snapshots)  # Generates a shuffled list of indices
