@@ -82,3 +82,5 @@ target/
 
 # my data
 melting/dataset/
+*.out
+*.sh
