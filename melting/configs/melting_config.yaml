@@ -20,8 +20,8 @@ default: &DEFAULT
     out_channels: 5
     n_modes_height: 16
     n_modes_width: 16
-    n_modes_depth: 16
-    hidden_channels: 32
+    n_modes_depth: 6
+    hidden_channels: 128
     projection_channel_ratio: 2
     n_layers: 4
     domain_padding: None #0.078125
@@ -32,7 +32,7 @@ default: &DEFAULT
     implementation: 'factorized'
     separable: 0
     preactivation: 0
-    use_channel_mlp: 1
+    use_channel_mlp: True
     channel_mlp_expansion: 0.5
     channel_mlp_dropout: 0
     factorization: None
@@ -45,8 +45,8 @@ default: &DEFAULT
 
   # Optimizer
   opt:
-    n_epochs: 300
-    learning_rate: 5e-3
+    n_epochs: 10000
+    learning_rate: 5e-4
     training_loss: 'h1'
     weight_decay: 1e-4
     amp_autocast: False
@@ -54,12 +54,14 @@ default: &DEFAULT
     scheduler_T_max: 500 # For cosine only, typically take n_epochs
     scheduler_patience: 5 # For ReduceLROnPlateau only
     scheduler: 'StepLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau'
-    step_size: 60
+      #scheduler: 'ReduceLROnPlateau'
+      #scheduler: 'CosineAnnealingLR'
+    step_size: 500
     gamma: 0.5
 
   # Dataset related
   data:
-    folder: melting/dataset
+    folder: melting/dataset/small
     batch_size: 16
     n_train: 1200
     train_resolution: 50
@@ -83,5 +85,5 @@ default: &DEFAULT
     project: ""
     entity: "" # put your username here
     sweep: False
-    log_output: True
+    log_output: False
     eval_interval: 1
