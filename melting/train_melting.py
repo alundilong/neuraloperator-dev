@@ -6,7 +6,8 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler
 import wandb
 
-from neuralop import H1Loss, LpLoss, Trainer, get_model
+from neuralop import Trainer, get_model
+from utils.mask_data_losses import H1Loss, LpLoss
 from utils.load_data import load_melting_dataset
 from neuralop.data.transforms.data_processors import MGPatchingDataProcessor
 from neuralop.training import setup, AdamW
