@@ -84,3 +84,4 @@ target/
 melting/dataset/
 *.out
 *.sh
+neuralop/data/datasets/data/olddata/
