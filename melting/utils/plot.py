@@ -5,11 +5,11 @@ import matplotlib.animation as animation
 import math
 
 # Load the dataset
-file_path = "../dataset/melting_train_50.pt"  # Change path if needed
+file_path = "../dataset/small/melting_train_50.pt"  # Change path if needed
 data = torch.load(file_path)
 
 # Extract the first sample
-y_sample = data["x"][0]  # Shape: (num_channels, height, width, time_steps)
+y_sample = data["y"][10]  # Shape: (num_channels, height, width, time_steps)
 
 # Convert to numpy for plotting
 y_sample_np = y_sample.numpy()  # Shape: (num_channels, height, width, time_steps)
@@ -18,8 +18,8 @@ y_sample_np = y_sample.numpy()  # Shape: (num_channels, height, width, time_step
 num_channels, height, width, time_steps = y_sample_np.shape
 torch.set_printoptions(threshold=10_000_000, linewidth=200)
 #np.set_printoptions(threshold=np.inf, linewidth=200, suppress=True)
-print(data['x'].shape)
-print(y_sample[2,:50,:50,0])
+#print(data['x'].shape)
+#print(y_sample[2,:50,:50,0])
 
 # Dynamically determine rows and cols
 num_cols = math.ceil(math.sqrt(num_channels))  # Try to make it a square grid
