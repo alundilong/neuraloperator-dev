@@ -277,7 +277,7 @@ class Trainer:
             train_err_channel += loss_channel.to(train_err_channel.device)
             with torch.no_grad():
                 avg_loss += loss.item()
-                avg_loss_channel += loss_channel.to(train_err_channel.device)
+                avg_loss_channel += loss_channel.to(avg_loss_channel.device)
                 if self.regularizer:
                     avg_lasso_loss += self.regularizer.loss
 
@@ -343,7 +343,8 @@ class Trainer:
         Returns
         -------
         errors : dict
-            dict[f'{log_prefix}_{loss_name}] = loss for loss in loss_dict
+            dict[f'{log_prefix}_{loss_name}'] = loss for loss in loss_dict
+            dict[f'{log_prefix}_{loss_name}_channel'] = loss_channel for loss_channel in loss_dict
         """
         # Ensure model and data processor are loaded to the proper device
 
@@ -355,7 +356,14 @@ class Trainer:
         if self.data_processor:
             self.data_processor.eval()
 
-        errors = {f"{log_prefix}_{loss_name}": 0 for loss_name in loss_dict.keys()}
+        sample_batch = next(iter(data_loader))     # retun a dict with a batch of data
+        y_data = sample_batch['y']
+        num_channels = y_data.shape[1]   # Get channel dimension
+
+        errors = {
+            **{f"{log_prefix}_{loss_name}": 0 for loss_name in loss_dict.keys()},  # Scalar loss
+            **{f"{log_prefix}_{loss_name}_channel": torch.zeros(num_channels, device=self.device) for loss_name in loss_dict.keys()}  # Tensor loss
+            }
 
         # Warn the user if any of the eval losses is reducing across the batch
         for _, eval_loss in loss_dict.items():
@@ -374,7 +382,7 @@ class Trainer:
                 eval_step_losses, outs = self.eval_one_batch(sample, loss_dict, return_output=return_output)
 
                 for loss_name, val_loss in eval_step_losses.items():
-                    errors[f"{log_prefix}_{loss_name}"] += val_loss
+                    errors[f"{log_prefix}_{loss_name}"] += val_loss.to(self.device)
             
         for key in errors.keys():
             errors[key] /= self.n_samples
@@ -510,7 +518,9 @@ class Trainer:
 
         for loss_name, loss in eval_losses.items():
             val_loss, val_loss_channel = loss(out, **sample)
+            eval_step_losses[loss_name+"_channel"] = val_loss_channel
             eval_step_losses[loss_name] = val_loss
+
         
         if return_output:
             return eval_step_losses, out
@@ -563,6 +573,15 @@ class Trainer:
         msg = f"[{epoch}] time={time:.2f}, "
         msg += f"avg_loss={avg_loss:.4f}, "
         msg += f"train_err={train_err:.4f}"
+
+        # Convert tensors/lists to formatted strings
+        train_err_channel_str = " ".join([f"{x:.4f}" for x in train_err_channel.tolist()])
+        avg_loss_channel_str = " ".join([f"{x:.4f}" for x in avg_loss_channel.tolist()])
+
+        # Append channel-wise losses
+        msg += f", train_err_channel=[{train_err_channel_str}]"
+        msg += f", avg_loss_channel=[{avg_loss_channel_str}]"
+
         if avg_lasso_loss is not None:
             msg += f", avg_lasso={avg_lasso_loss:.4f}"
 
@@ -592,10 +611,20 @@ class Trainer:
         values_to_log = {}
         msg = ""
         for metric, value in eval_metrics.items():
-            if isinstance(value, float) or isinstance(value, torch.Tensor):
+            if isinstance(value, float):  # Single float value
                 msg += f"{metric}={value:.4f}, "
-            if self.wandb_log:
-                values_to_log[metric] = value       
+                if self.wandb_log:
+                    values_to_log[metric] = value
+            elif isinstance(value, torch.Tensor):  # Handle tensor values
+                if value.numel() == 1:  # Single-element tensor
+                    msg += f"{metric}={value.item():.4f}, "
+                    if self.wandb_log:
+                        values_to_log[metric] = value.item()
+                else:  # Multi-channel tensor
+                    values_str = " ".join([f"{v:.4f}" for v in value.flatten().tolist()])
+                    msg += f"{metric}=[{values_str}], "
+                    if self.wandb_log:
+                        values_to_log[metric] = value.tolist()  # Store as list for logging
         
         msg = f"Eval: " + msg[:-2] # cut off last comma+space
         print(msg)
