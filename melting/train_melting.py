@@ -6,7 +6,8 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler
 import wandb
 
-from neuralop import Trainer, get_model
+from neuralop import get_model
+from training.trainer import Trainer
 from losses.mask_data_losses import H1Loss, LpLoss
 from utils.load_data import load_melting_dataset
 from neuralop.data.transforms.data_processors import MGPatchingDataProcessor
@@ -36,7 +37,7 @@ device, is_logger = setup(config)
 # Set up WandB logging
 wandb_args = None
 if config.wandb.log and is_logger:
-    wandb.login(key=get_wandb_api_key())
+    wandb.login(key=get_wandb_api_key(api_key_file="configs/wandb_api_key.txt"))
     if config.wandb.name:
         wandb_name = config.wandb.name
     else:
@@ -44,12 +45,13 @@ if config.wandb.log and is_logger:
             f"{var}"
             for var in [
                 config_name,
-                config.fno.n_layers,
-                config.fno.hidden_channels,
-                config.fno.n_modes_width,
-                config.fno.n_modes[0],
-                config.fno.factorization,
-                config.fno.rank,
+                config.tfno3d.n_layers,
+                config.tfno3d.hidden_channels,
+                config.tfno3d.n_modes_height,
+                config.tfno3d.n_modes_width,
+                config.tfno3d.n_modes_depth,
+                config.tfno3d.factorization,
+                config.tfno3d.rank,
                 config.patching.levels,
                 config.patching.padding,
             ]
