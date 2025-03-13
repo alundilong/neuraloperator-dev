@@ -66,7 +66,7 @@ class LpLoss(object):
             measure=1.,
             reduction='sum',
             data_processor=None,
-            relative=True,
+            loss_type='relative',
             mask_channel_outputs=None,
             mask_channel=None):
         super().__init__()
@@ -74,7 +74,7 @@ class LpLoss(object):
         self.d = d
         self.p = p
         self.data_processor = data_processor
-        self.relative = relative
+        self.loss_type = loss_type
         self.mask_channel_outputs = mask_channel_outputs
         self.mask_channel = mask_channel
         
@@ -238,10 +238,12 @@ class LpLoss(object):
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
-        if self.relative:
+        if self.loss_type == "relative":
             return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
-        else:
+        elif self.loss_type == "absolute":
             return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
+        else:
+            return self.hybrid(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs, loss_types = self.loss_type)
 
 class H1Loss(object):
     """
@@ -297,7 +299,7 @@ class H1Loss(object):
             fix_y_bnd=False,
             fix_z_bnd=False,
             data_processor=None,
-            relative=True,
+            loss_type='relative',
             mask_channel_outputs=None,
             mask_channel=None):
         super().__init__()
@@ -309,7 +311,7 @@ class H1Loss(object):
         self.fix_y_bnd = fix_y_bnd
         self.fix_z_bnd = fix_z_bnd
         self.data_processor = data_processor
-        self.relative = relative
+        self.loss_type = loss_type
         self.mask_channel_outputs = mask_channel_outputs
         self.mask_channel = mask_channel
         
@@ -529,10 +531,12 @@ class H1Loss(object):
             if self.data_processor.in_normalizer is not None:
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
-        if self.relative:
+        if self.loss_type == "relative":
             return self.rel(y_pred, y, quadrature=quadrature)
-        else:
+        elif self.loss_type == "absolute":
             return self.abs(y_pred, y, quadrature=quadrature)
+        else:
+            return self.hybrid(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs, loss_types = self.loss_type)
 
 class HdivLoss(object):
     """
