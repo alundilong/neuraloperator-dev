@@ -9,6 +9,7 @@ import math
 from typing import List
 
 import torch
+import torch.distributed as dist
 
 from neuralop.losses.finite_diff import central_diff_1d, central_diff_2d, central_diff_3d
 
@@ -118,7 +119,7 @@ class LpLoss(object):
         
         return x
 
-    def abs(self, x, y, quadrature=None):
+    def abs(self, x, y, quadrature=None, mask_tensor=None, mask_channel_outputs=None):
         """absolute Lp-norm
 
         Parameters
@@ -131,6 +132,7 @@ class LpLoss(object):
             quadrature weights for integral
             either single scalar or one per dimension
         """
+    
         #Assume uniform mesh
         if quadrature is None:
             quadrature = self.uniform_quadrature(x)
@@ -139,10 +141,33 @@ class LpLoss(object):
                 quadrature = [quadrature]*self.d
         
         const = math.prod(quadrature)**(1.0/self.p)
-        diff = const*torch.norm(torch.flatten(x, start_dim=-self.d) - torch.flatten(y, start_dim=-self.d), \
-                                              p=self.p, dim=-1, keepdim=False)
 
-        diff = self.reduce_all(diff).squeeze()
+        # Compute absolute difference
+        diff = torch.abs(x - y)  # Shape: (batch, channels, ...)
+    
+        # Apply mask if provided
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+            
+            # Expand mask tensor if needed
+            while mask_tensor.ndim < diff.ndim:
+                mask_tensor = mask_tensor.unsqueeze(0)  # Match batch size or spatial dimensions
+            
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
+        # Compute Lp norm of the masked difference
+        diff_norm = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+
+        diff_channel_wise = torch.sum(diff_norm, dim=0)
+        dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
+        diff_channel_wise /= dist.get_world_size()
+
+        if dist.get_rank() == 0:
+            print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
+
+        diff = self.reduce_all(diff_norm).squeeze()
             
         return diff
 
@@ -191,6 +216,13 @@ class LpLoss(object):
         # Compute relative Lp loss
         diff = diff_norm / y_norm
 
+        diff_channel_wise = torch.sum(diff, dim=0)
+        dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
+        diff_channel_wise /= dist.get_world_size()
+
+        if dist.get_rank() == 0:
+            print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
+
         diff = self.reduce_all(diff).squeeze()
 
         return diff
@@ -203,7 +235,8 @@ class LpLoss(object):
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,5:6,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
-        return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
+        #return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
+        return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
 
 class H1Loss(object):
     """
