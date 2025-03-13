@@ -60,12 +60,14 @@ class LpLoss(object):
     ```
     """
 
-    def __init__(self, d=1, p=2, measure=1., reduction='sum', data_processor=None):
+    def __init__(self, d=1, p=2, measure=1., reduction='sum', data_processor=None, relative=True, mask_channel_outputs=None):
         super().__init__()
 
         self.d = d
         self.p = p
         self.data_processor = data_processor
+        self.relative = relative
+        self.mask_channel_outputs = mask_channel_outputs
         
         allowed_reductions = ["sum", "mean"]
         assert reduction in allowed_reductions,\
@@ -235,8 +237,10 @@ class LpLoss(object):
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,5:6,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
-        return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
-        #return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
+        if self.relative:
+            return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
+        else:
+            return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
 
 class H1Loss(object):
     """
@@ -284,7 +288,7 @@ class H1Loss(object):
         whether to fix finite difference derivative
         computation on the z boundary, by default False
     """
-    def __init__(self, d=1, measure=1., reduction='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False):
+    def __init__(self, d=1, measure=1., reduction='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False, data_processor=None, relative=True, mask_channel_outputs=None):
         super().__init__()
 
         assert d > 0 and d < 4, "Currently only implemented for 1, 2, and 3-D."
@@ -404,7 +408,7 @@ class H1Loss(object):
         
         return x
         
-    def abs(self, x, y, quadrature=None):
+    def abs(self, x, y, quadrature=None, mask_tensor=None, mask_channel_outputs=None):
         """absolute H1 norm
 
         Parameters
@@ -438,7 +442,7 @@ class H1Loss(object):
             
         return diff, diff_channel_wise
         
-    def rel(self, x, y, quadrature=None):
+    def rel(self, x, y, quadrature=None, mask_tensor=None, mask_channel_outputs=None):
         """relative H1-norm
 
         Parameters
@@ -484,7 +488,16 @@ class H1Loss(object):
         quadrature : float or list, optional
             normalization constant for reduction, by default None
         """
-        return self.rel(y_pred, y, quadrature=quadrature)
+        input_x = kwargs['x'].clone()
+        mask_tensor = None
+        if self.data_processor is not None:
+            if self.data_processor.in_normalizer is not None:
+                input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
+                mask_tensor = input_x[:,5:6,:,:,:]
+        if self.relative:
+            return self.rel(y_pred, y, quadrature=quadrature)
+        else:
+            return self.abs(y_pred, y, quadrature=quadrature)
 
 class HdivLoss(object):
     """
