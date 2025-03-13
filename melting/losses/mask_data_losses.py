@@ -162,10 +162,6 @@ class LpLoss(object):
             if isinstance(mask_channel_outputs, list):
                 mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
             
-            # Expand mask tensor if needed
-            while mask_tensor.ndim < diff.ndim:
-                mask_tensor = mask_tensor.unsqueeze(0)  # Match batch size or spatial dimensions
-            
             # Apply mask only on selected channels
             diff[:, mask_channel_outputs, ...] *= mask_tensor
         # Compute Lp norm of the masked difference
@@ -207,10 +203,6 @@ class LpLoss(object):
             # Ensure mask_channel_outputs is a tensor for proper indexing
             if isinstance(mask_channel_outputs, list):
                 mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
-            
-            # Expand mask tensor if needed
-            while mask_tensor.ndim < diff.ndim:
-                mask_tensor = mask_tensor.unsqueeze(0)  # Match batch size or spatial dimensions
             
             # Apply mask only on selected channels
             diff[:, mask_channel_outputs, ...] *= mask_tensor
@@ -457,6 +449,16 @@ class H1Loss(object):
 
         for j in range(1, self.d + 1):
             diff += const*torch.norm(dict_x[j] - dict_y[j], p=2, dim=-1, keepdim=False)**2
+
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+
+            mask_tensor = torch.flatten(mask_tensor, start_dim=-self.d)
+
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
         
         diff = diff**0.5
 
@@ -493,6 +495,16 @@ class H1Loss(object):
             diff += torch.norm(dict_x[j] - dict_y[j], p=2, dim=-1, keepdim=False)**2
             ynorm += torch.norm(dict_y[j], p=2, dim=-1, keepdim=False)**2
         
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+
+            mask_tensor = torch.flatten(mask_tensor, start_dim=-self.d)
+
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
+
         diff = (diff**0.5)/(ynorm**0.5)
 
         diff_channel_wise = torch.sum(diff, dim=0)
