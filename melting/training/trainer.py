@@ -572,7 +572,7 @@ class Trainer:
 
         msg = f"[{epoch}] time={time:.2f}, "
         msg += f"avg_loss={avg_loss:.4f}, "
-        msg += f"train_err={train_err:.4f}"
+        msg += f"train_err={train_err:.4f}, "
         msg += f"lr={lr:.4f}"
 
         # Convert tensors/lists to formatted strings
