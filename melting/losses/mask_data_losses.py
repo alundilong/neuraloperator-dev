@@ -60,7 +60,15 @@ class LpLoss(object):
     ```
     """
 
-    def __init__(self, d=1, p=2, measure=1., reduction='sum', data_processor=None, relative=True, mask_channel_outputs=None):
+    def __init__(self,
+            d=1,
+            p=2,
+            measure=1.,
+            reduction='sum',
+            data_processor=None,
+            relative=True,
+            mask_channel_outputs=None,
+            mask_channel=None):
         super().__init__()
 
         self.d = d
@@ -68,6 +76,7 @@ class LpLoss(object):
         self.data_processor = data_processor
         self.relative = relative
         self.mask_channel_outputs = mask_channel_outputs
+        self.mask_channel = mask_channel
         
         allowed_reductions = ["sum", "mean"]
         assert reduction in allowed_reductions,\
@@ -235,7 +244,7 @@ class LpLoss(object):
         if self.data_processor is not None:
             if self.data_processor.in_normalizer is not None:
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
-                mask_tensor = input_x[:,5:6,:,:,:]
+                mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
         if self.relative:
             return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
@@ -288,7 +297,17 @@ class H1Loss(object):
         whether to fix finite difference derivative
         computation on the z boundary, by default False
     """
-    def __init__(self, d=1, measure=1., reduction='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False, data_processor=None, relative=True, mask_channel_outputs=None):
+    def __init__(self,
+            d=1,
+            measure=1.,
+            reduction='sum',
+            fix_x_bnd=False,
+            fix_y_bnd=False,
+            fix_z_bnd=False,
+            data_processor=None,
+            relative=True,
+            mask_channel_outputs=None,
+            mask_channel=None):
         super().__init__()
 
         assert d > 0 and d < 4, "Currently only implemented for 1, 2, and 3-D."
@@ -297,6 +316,10 @@ class H1Loss(object):
         self.fix_x_bnd = fix_x_bnd
         self.fix_y_bnd = fix_y_bnd
         self.fix_z_bnd = fix_z_bnd
+        self.data_processor = data_processor
+        self.relative = relative
+        self.mask_channel_outputs = mask_channel_outputs
+        self.mask_channel = mask_channel
         
         allowed_reductions = ["sum", "mean"]
         assert reduction in allowed_reductions,\
@@ -493,7 +516,7 @@ class H1Loss(object):
         if self.data_processor is not None:
             if self.data_processor.in_normalizer is not None:
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
-                mask_tensor = input_x[:,5:6,:,:,:]
+                mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
         if self.relative:
             return self.rel(y_pred, y, quadrature=quadrature)
         else:

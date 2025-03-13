@@ -151,8 +151,8 @@ else:
 
 
 # Creating the losses
-l2loss = LpLoss(d=3, p=2, data_processor = data_processor)
-h1loss = H1Loss(d=3)
+l2loss = LpLoss(d=3, p=2, data_processor = data_processor,relative=False, mask_channel_outputs=[0,2,3,4], mask_channel=5)
+h1loss = H1Loss(d=3, data_processor = data_processor,relative=False, mask_channel_outputs=[0,2,3,4], mask_channel=5)
 if config.opt.training_loss == "l2":
     train_loss = l2loss
 elif config.opt.training_loss == "h1":
