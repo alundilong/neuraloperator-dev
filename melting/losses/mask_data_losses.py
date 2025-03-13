@@ -161,15 +161,15 @@ class LpLoss(object):
         diff_norm = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
 
         diff_channel_wise = torch.sum(diff_norm, dim=0)
-        dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
-        diff_channel_wise /= dist.get_world_size()
+        #dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
+        #diff_channel_wise /= dist.get_world_size()
 
-        if dist.get_rank() == 0:
-            print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
+        #if dist.get_rank() == 0:
+        #    print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
 
         diff = self.reduce_all(diff_norm).squeeze()
             
-        return diff
+        return diff, diff_channel_wise
 
     def rel(self, x, y, mask_tensor=None, mask_channel_outputs=None):
         """
@@ -217,15 +217,15 @@ class LpLoss(object):
         diff = diff_norm / y_norm
 
         diff_channel_wise = torch.sum(diff, dim=0)
-        dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
-        diff_channel_wise /= dist.get_world_size()
+        #dist.all_reduce(diff_channel_wise, op=dist.ReduceOp.SUM)
+        #diff_channel_wise /= dist.get_world_size()
 
-        if dist.get_rank() == 0:
-            print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
+        #if dist.get_rank() == 0:
+        #    print("Reduced Tensor:", " ".join(map(str, diff_channel_wise.tolist())))      
 
         diff = self.reduce_all(diff).squeeze()
 
-        return diff
+        return diff, diff_channel_wise
 
     def __call__(self, y_pred, y, **kwargs):
         input_x = kwargs['x'].clone()
@@ -235,8 +235,8 @@ class LpLoss(object):
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,5:6,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
-        #return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
-        return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
+        return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
+        #return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
 
 class H1Loss(object):
     """
@@ -433,9 +433,10 @@ class H1Loss(object):
         
         diff = diff**0.5
 
+        diff_channel_wise = torch.sum(diff, dim=0)
         diff = self.reduce_all(diff).squeeze()
             
-        return diff
+        return diff, diff_channel_wise
         
     def rel(self, x, y, quadrature=None):
         """relative H1-norm
@@ -467,9 +468,10 @@ class H1Loss(object):
         
         diff = (diff**0.5)/(ynorm**0.5)
 
+        diff_channel_wise = torch.sum(diff, dim=0)
         diff = self.reduce_all(diff).squeeze()
             
-        return diff
+        return diff, diff_channel_wise
 
     def __call__(self, y_pred, y, quadrature=None, **kwargs):
         """
