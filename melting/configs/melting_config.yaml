@@ -8,22 +8,23 @@ default: &DEFAULT
 
   #Distributed computing
   distributed:
-    use_distributed: False
+    use_distributed: True
     wireup_info: 'mpi'
     wireup_store: 'tcp'
-    model_parallel_size: 2
-    seed: 666
+    model_parallel_size: 1
+    seed: 690
 
   # FNO related
   tfno3d:
     data_channels: 9
     out_channels: 5
-    n_modes_height: 16
-    n_modes_width: 16
-    n_modes_depth: 6
-    hidden_channels: 128
+    n_modes_height: 64
+    n_modes_width: 64
+    n_modes_depth: 64
+    hidden_channels: 32
+    positional_embedding: None
     projection_channel_ratio: 2
-    n_layers: 4
+    n_layers: 8
     domain_padding: None #0.078125
     domain_padding_mode: 'one-sided' #symmetric
     fft_norm: 'forward'
@@ -32,13 +33,13 @@ default: &DEFAULT
     implementation: 'factorized'
     separable: 0
     preactivation: 0
-    use_channel_mlp: True
+    use_channel_mlp: 1
     channel_mlp_expansion: 0.5
-    channel_mlp_dropout: 0
+    channel_mlp_dropout: 0.2
     factorization: None
     rank: 1.0
     fixed_rank_modes: None
-    dropout: 0.0
+    dropout: 0.3
     tensor_lasso_penalty: 0.0
     joint_factorization: False
     stabilizer: None # or 'tanh'
@@ -47,7 +48,7 @@ default: &DEFAULT
   opt:
     n_epochs: 10000
     learning_rate: 5e-4
-    training_loss: 'h1'
+    training_loss: 'l2'
     weight_decay: 1e-4
     amp_autocast: False
 
@@ -63,12 +64,12 @@ default: &DEFAULT
   data:
     folder: melting/dataset/small
     batch_size: 16
-    n_train: 1200
+    n_train: 80
     train_resolution: 50
-    n_tests: [300]
+    n_tests: [20]
     test_resolutions: [50]
     test_batch_sizes: [16]
-    encode_input: True
+    encode_input: False
     encode_output: True
 
   # Patching
