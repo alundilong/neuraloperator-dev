@@ -138,6 +138,14 @@ elif config.opt.scheduler == "StepLR":
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=config.opt.step_size, gamma=config.opt.gamma
     )
+elif config.opt.scheduler == "OneCycleLR":
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=config.opt.max_lr,
+            div_factor=1e4,
+            pct_start=0.2,
+            final_div_factor=1e4,
+            steps_per_epoch=len(train_loader), epochs=config.opt.n_epochs)
 else:
     raise ValueError(f"Got scheduler={config.opt.scheduler}")
 
