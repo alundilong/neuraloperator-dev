@@ -59,11 +59,12 @@ class LpLoss(object):
     ```
     """
 
-    def __init__(self, d=1, p=2, measure=1., reduction='sum'):
+    def __init__(self, d=1, p=2, measure=1., reduction='sum', data_processor=None):
         super().__init__()
 
         self.d = d
         self.p = p
+        self.data_processor = data_processor
         
         allowed_reductions = ["sum", "mean"]
         assert reduction in allowed_reductions,\
@@ -145,31 +146,64 @@ class LpLoss(object):
             
         return diff
 
-    def rel(self, x, y):
+    def rel(self, x, y, mask_tensor=None, mask_channel_outputs=None):
         """
         rel: relative LpLoss
-        computes ||x-y||/||y||
-
+        Computes ||x - y|| / ||y||
+    
         Parameters
         ----------
         x : torch.Tensor
-            inputs
+            inputs (predicted values)
         y : torch.Tensor
-            targets
+            targets (ground truth)
+        mask_tensor : torch.Tensor, optional
+            Mask tensor to be applied only on specified channels.
+        mask_channel_outputs : list or torch.Tensor, optional
+            Indices of channels where the mask should be applied.
         """
-
-        diff = torch.norm(torch.flatten(x, start_dim=-self.d) - torch.flatten(y, start_dim=-self.d), \
-                          p=self.p, dim=-1, keepdim=False)
-        ynorm = torch.norm(torch.flatten(y, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
-
-        diff = diff/ynorm
+    
+        # Compute absolute difference
+        diff = torch.abs(x - y)  # Shape: (batch, channels, ...)
+    
+        # Apply mask if provided
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+            
+            # Expand mask tensor if needed
+            while mask_tensor.ndim < diff.ndim:
+                mask_tensor = mask_tensor.unsqueeze(0)  # Match batch size or spatial dimensions
+            
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
+    
+        # Compute Lp norm of the masked difference
+        diff_norm = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+    
+        # Compute Lp norm of the target (denominator)
+        y_norm = torch.norm(torch.flatten(y, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+    
+        # Avoid division by zero
+        y_norm = torch.where(y_norm == 0, torch.tensor(1.0, device=y.device), y_norm)
+    
+        # Compute relative Lp loss
+        diff = diff_norm / y_norm
 
         diff = self.reduce_all(diff).squeeze()
-            
+
         return diff
 
     def __call__(self, y_pred, y, **kwargs):
-        return self.rel(y_pred, y)
+        input_x = kwargs['x'].clone()
+        mask_tensor = None
+        if self.data_processor is not None:
+            if self.data_processor.in_normalizer is not None:
+                input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
+                mask_tensor = input_x[:,5:6,:,:,:]
+        #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
+        return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=[0,2,3,4])
 
 class H1Loss(object):
     """

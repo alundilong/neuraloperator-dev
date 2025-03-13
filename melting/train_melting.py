@@ -141,7 +141,7 @@ else:
 
 
 # Creating the losses
-l2loss = LpLoss(d=3, p=2)
+l2loss = LpLoss(d=3, p=2, data_processor = data_processor)
 h1loss = H1Loss(d=3)
 if config.opt.training_loss == "l2":
     train_loss = l2loss
