@@ -186,11 +186,11 @@ class LpLoss(object):
             # Apply mask only on selected channels
             diff[:, mask_channel_outputs, ...] *= mask_tensor
         # Compute Lp norm of the masked difference
-        diff_norm = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+        diff = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
 
-        diff_channel_wise = self.reduce_channel(diff_norm)
+        diff_channel_wise = self.reduce_channel(diff)
 
-        diff = self.reduce_all(diff_norm).squeeze()
+        diff = self.reduce_all(diff_channel_wise).squeeze()
             
         return diff, diff_channel_wise
 
@@ -237,7 +237,7 @@ class LpLoss(object):
 
         diff_channel_wise = self.reduce_channel(diff)
 
-        diff = self.reduce_all(diff).squeeze()
+        diff = self.reduce_all(diff_channel_wise).squeeze()
 
         return diff, diff_channel_wise
 
@@ -294,7 +294,7 @@ class LpLoss(object):
 
         diff_channel_wise = self.reduce_channel(diff)
 
-        diff = self.reduce_all(diff).squeeze()
+        diff = self.reduce_all(diff_channel_wise).squeeze()
 
         return diff, diff_channel_wise
 
