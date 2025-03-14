@@ -8,7 +8,7 @@ import wandb
 
 from neuralop import get_model
 from training.trainer import Trainer
-from losses.mask_data_losses import H1Loss, LpLoss
+from losses.mask_data_losses import LpLoss
 from utils.load_data import load_melting_dataset
 from neuralop.data.transforms.data_processors import MGPatchingDataProcessor
 from neuralop.training import setup, AdamW
@@ -151,18 +151,16 @@ else:
 
 
 # Creating the losses
-l2loss = LpLoss(d=3, p=2, data_processor = data_processor,relative=False, mask_channel_outputs=[0,2,3,4], mask_channel=5)
-h1loss = H1Loss(d=3, data_processor = data_processor,relative=False, mask_channel_outputs=[0,2,3,4], mask_channel=5)
+l2loss = LpLoss(d=3, p=2, data_processor = data_processor,loss_type=config.opt.loss_type, mask_channel_outputs=[0,2,3], mask_channel=5)
+
 if config.opt.training_loss == "l2":
     train_loss = l2loss
-elif config.opt.training_loss == "h1":
-    train_loss = h1loss
 else:
     raise ValueError(
         f'Got training_loss={config.opt.training_loss} '
-        f'but expected one of ["l2", "h1"]'
+        f'but expected one of ["l2"]'
     )
-eval_losses = {"h1": h1loss, "l2": l2loss}
+eval_losses = {"l2": l2loss}
 
 if config.verbose and is_logger:
     print("\n### MODEL ###\n", model)
