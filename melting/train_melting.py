@@ -211,7 +211,7 @@ trainer.train(
     regularizer=False,
     training_loss=train_loss,
     eval_losses=eval_losses,
-    save_every = 100
+    save_every = config.tfno3d.save_every
 )
 
 if config.wandb.log and is_logger:
