@@ -143,8 +143,16 @@ class DefaultDataProcessor(DataProcessor):
         out, data_dict
             postprocessed outputs and data dict
         """
-        if self.out_normalizer and not self.training:
-            output = self.out_normalizer.inverse_transform(output)
+        if not self.training:
+            y = data_dict["y"].to(self.device)
+
+            if self.out_normalizer:
+                y = self.out_normalizer.inverse_transform(y)
+
+            data_dict["y"] = y
+            if self.out_normalizer:
+                output = self.out_normalizer.inverse_transform(output)
+
         return output, data_dict
 
     def forward(self, **data_dict):
