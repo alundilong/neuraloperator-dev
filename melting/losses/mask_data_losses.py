@@ -74,6 +74,11 @@ class LpLoss(object):
         self.d = d
         self.p = p
         self.data_processor = data_processor
+
+        # Ensure loss_type is either a string or a list of strings
+        if not (isinstance(loss_type, str) or (isinstance(loss_type, list) and all(isinstance(l, str) for l in loss_type))):
+            raise ValueError(f"Invalid loss_type: {self.loss_type}. Expected a string or a list of strings.")
+
         self.loss_type = loss_type
         self.mask_channel_outputs = mask_channel_outputs
         self.mask_channel = mask_channel
@@ -230,6 +235,63 @@ class LpLoss(object):
 
         return diff, diff_channel_wise
 
+    def hybrid(self, x, y, mask_tensor=None, mask_channel_outputs=None, loss_types = None):
+        """
+        rel: relative LpLoss
+        Computes ||x - y|| / ||y||
+    
+        Parameters
+        ----------
+        x : torch.Tensor
+            inputs (predicted values)
+        y : torch.Tensor
+            targets (ground truth)
+        mask_tensor : torch.Tensor, optional
+            Mask tensor to be applied only on specified channels.
+        mask_channel_outputs : list or torch.Tensor, optional
+            Indices of channels where the mask should be applied.
+        """
+    
+        # Compute absolute difference
+        diff = torch.abs(x - y)  # Shape: (batch, channels, ...)
+    
+        # Apply mask if provided
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+            
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
+    
+        # Compute Lp norm of the masked difference
+        diff_norm = torch.norm(torch.flatten(diff, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+    
+        # Compute Lp norm of the target (denominator)
+        y_norm = torch.norm(torch.flatten(y, start_dim=-self.d), p=self.p, dim=-1, keepdim=False)
+    
+        # Avoid division by zero
+        y_norm = torch.where(y_norm == 0, torch.tensor(1.0, device=y.device), y_norm)
+    
+        # Ensure loss_types has the correct length
+        num_channels = diff_norm.shape[1]  # The second dimension is the channel dimension
+        if len(loss_types) != num_channels:
+            raise ValueError(f"Mismatch: loss_types has {len(loss_types)} elements, but expected {num_channels}.")
+        
+        diff = torch.zeros_like(diff_norm)
+        # Iterate over channels and apply different loss calculations
+        for channel in range(num_channels):
+            if loss_types[channel] == "relative":
+                diff[:, channel, ...] = diff_norm[:, channel, ...] / y_norm[:, channel, ...]
+            else:
+                diff[:, channel, ...] = diff_norm[:, channel, ...]  # Keep absolute error
+
+        diff_channel_wise = torch.sum(diff, dim=0)
+
+        diff = self.reduce_all(diff).squeeze()
+
+        return diff, diff_channel_wise
+
     def __call__(self, y_pred, y, **kwargs):
         input_x = kwargs['x'].clone()
         mask_tensor = None
@@ -238,10 +300,11 @@ class LpLoss(object):
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
         #print(mask_tensor.max(), mask_tensor.min(), mask_tensor.mean())
-        if self.loss_type == "relative":
-            return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
-        elif self.loss_type == "absolute":
-            return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
+        if isinstance(self.loss_type, str):
+            if self.loss_type == "relative":
+                return self.rel(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
+            elif self.loss_type == "absolute":
+                return self.abs(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs)
         else:
             return self.hybrid(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs, loss_types = self.loss_type)
 
@@ -311,7 +374,12 @@ class H1Loss(object):
         self.fix_y_bnd = fix_y_bnd
         self.fix_z_bnd = fix_z_bnd
         self.data_processor = data_processor
+        # Ensure loss_type is either a string or a list of strings
+        if not (isinstance(loss_type, str) or (isinstance(loss_type, list) and all(isinstance(l, str) for l in loss_type))):
+            raise ValueError(f"Invalid loss_type: {self.loss_type}. Expected a string or a list of strings.")
+
         self.loss_type = loss_type
+
         self.mask_channel_outputs = mask_channel_outputs
         self.mask_channel = mask_channel
         
@@ -514,6 +582,63 @@ class H1Loss(object):
             
         return diff, diff_channel_wise
 
+    def hybrid(self, x, y, quadrature=None, mask_tensor=None, mask_channel_outputs=None, loss_types=None):
+        """relative H1-norm
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            inputs
+        y : torch.Tensor
+            targets
+        quadrature : float or list, optional
+            quadrature constant for reduction along each dim, by default None
+        """
+        #Assume uniform mesh
+        if quadrature is None:
+            quadrature = self.uniform_quadrature(x)
+        else:
+            if isinstance(quadrature, float):
+                quadrature = [quadrature]*self.d
+        
+        dict_x, dict_y = self.compute_terms(x, y, quadrature)
+
+        diff = torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
+        ynorm = torch.norm(dict_y[0], p=2, dim=-1, keepdim=False)**2
+
+        for j in range(1, self.d + 1):
+            diff += torch.norm(dict_x[j] - dict_y[j], p=2, dim=-1, keepdim=False)**2
+            ynorm += torch.norm(dict_y[j], p=2, dim=-1, keepdim=False)**2
+        
+        if mask_tensor is not None and mask_channel_outputs is not None:
+            # Ensure mask_channel_outputs is a tensor for proper indexing
+            if isinstance(mask_channel_outputs, list):
+                mask_channel_outputs = torch.tensor(mask_channel_outputs, device=x.device)
+
+            mask_tensor = torch.flatten(mask_tensor, start_dim=-self.d)
+
+            # Apply mask only on selected channels
+            diff[:, mask_channel_outputs, ...] *= mask_tensor
+
+        #diff = (diff**0.5)/(ynorm**0.5)
+        # Ensure loss_types has the correct length
+        num_channels = diff_norm.shape[1]  # The second dimension is the channel dimension
+        if len(loss_types) != num_channels:
+            raise ValueError(f"Mismatch: loss_types has {len(loss_types)} elements, but expected {num_channels}.")
+        
+        diff = torch.zeros_like(diff_norm)
+        # Iterate over channels and apply different loss calculations
+        for channel in range(num_channels):
+            if loss_types[channel] == "relative":
+                diff[:, channel, ...] = (diff_norm[:, channel, ...]**0.5) / (y_norm[:, channel, ...]**0.5)
+            else:
+                diff[:, channel, ...] = (diff_norm[:, channel, ...]**0.5)  # Keep absolute error
+
+        diff_channel_wise = torch.sum(diff, dim=0)
+        diff = self.reduce_all(diff).squeeze()
+            
+        return diff, diff_channel_wise
+
     def __call__(self, y_pred, y, quadrature=None, **kwargs):
         """
         Parameters
@@ -531,10 +656,11 @@ class H1Loss(object):
             if self.data_processor.in_normalizer is not None:
                 input_x = self.data_processor.in_normalizer.inverse_transform(input_x)
                 mask_tensor = input_x[:,self.mask_channel:self.mask_channel+1,:,:,:]
-        if self.loss_type == "relative":
-            return self.rel(y_pred, y, quadrature=quadrature)
-        elif self.loss_type == "absolute":
-            return self.abs(y_pred, y, quadrature=quadrature)
+        if isinstance(self.loss_type, str):
+            if self.loss_type == "relative":
+                return self.rel(y_pred, y, quadrature=quadrature, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs,)
+            elif self.loss_type == "absolute":
+                return self.abs(y_pred, y, quadrature=quadrature, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs,)
         else:
             return self.hybrid(y_pred, y, mask_tensor=mask_tensor, mask_channel_outputs=self.mask_channel_outputs, loss_types = self.loss_type)
 
