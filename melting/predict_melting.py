@@ -23,7 +23,7 @@ config_name = "default"
 pipe = ConfigPipeline(
     [
         YamlConfig(
-            "./melting_config.yaml", config_name="default", config_folder="./configs"
+            "./melting_config_pred.yaml", config_name="default", config_folder="./configs"
         ),
         ArgparseConfig(infer_types=True, config_name=None, config_file=None),
         YamlConfig(config_folder="../config"),
@@ -77,9 +77,11 @@ if config.verbose and is_logger:
     pipe.log()
     sys.stdout.flush()
 
-data_folder = get_project_root() / config.data.folder
+train_data_folder = get_project_root() / config.data.train_data_folder
+test_data_folder = get_project_root() / config.data.test_data_folder
 # Loading the Darcy flow dataset
-train_loader, test_loaders, data_processor = load_melting_dataset(data_root = data_folder,
+train_loader, test_loaders, data_processor = load_melting_dataset(train_data_root = train_data_folder,
+    test_data_root = test_data_folder,
     n_train=config.data.n_train,
     batch_size=config.data.batch_size,
     test_resolutions=config.data.test_resolutions,
@@ -90,7 +92,7 @@ train_loader, test_loaders, data_processor = load_melting_dataset(data_root = da
 )
 
 model = get_model(config)
-model = model.from_checkpoint(save_folder="./ckpt", save_name="model")
+model = model.from_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
 
 # convert dataprocessor to an MGPatchingDataprocessor if patching levels > 0
 if config.patching.levels > 0:
@@ -146,7 +148,6 @@ with torch.no_grad():
 
             out = model(**sample)
 
-            print(data_processor.training)
             if data_processor is not None:
                 out, sample = data_processor.postprocess(out, sample)
             
@@ -161,5 +162,5 @@ with torch.no_grad():
             print(eval_step_losses)
             #plot_channel_animation(out)
             compare_tensors_animation(out,sample["y"])
-            #break
+            break
 
