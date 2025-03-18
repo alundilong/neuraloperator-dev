@@ -7,6 +7,7 @@ import torch
 from .tensor_dataset import TensorDataset
 from ..transforms.data_processors import DefaultDataProcessor
 from ..transforms.normalizers import UnitGaussianNormalizer
+from ..transforms.minmax_normalizers import MinMaxNormalizer
 
 class PTDataset:
     """PTDataset is a base Dataset class for our library.
@@ -152,7 +153,7 @@ class PTDataset:
             elif encoding == "pixel-wise":
                 reduce_dims = [0]
 
-            input_encoder = UnitGaussianNormalizer(dim=reduce_dims)
+            input_encoder = MinMaxNormalizer(dim=reduce_dims)
             input_encoder.fit(x_train)
         else:
             input_encoder = None
@@ -165,7 +166,7 @@ class PTDataset:
             elif encoding == "pixel-wise":
                 reduce_dims = [0]
 
-            output_encoder = UnitGaussianNormalizer(dim=reduce_dims)
+            output_encoder = MinMaxNormalizer(dim=reduce_dims)
             output_encoder.fit(y_train)
         else:
             output_encoder = None
