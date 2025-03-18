@@ -27,7 +27,8 @@ class MeltingDataset(PTDataset):
         optional, default is None
     """
     def __init__(self,
-                 root_dir: Union[Path, str],
+                 train_root_dir: Union[Path, str],
+                 test_root_dir: Union[Path, str],
                  n_train: int,
                  n_tests: List[int],
                  batch_size: int,
@@ -45,8 +46,10 @@ class MeltingDataset(PTDataset):
 
         Parameters
         ----------
-        root_dir : Union[Path, str]
-            root at which to download data files
+        train root_dir : Union[Path, str]
+            root at which to download train data files
+        test root_dir : Union[Path, str]
+            root at which to download tes data files
         dataset_name : str
             prefix of pt data files to store/access
         n_train : int
@@ -80,10 +83,15 @@ class MeltingDataset(PTDataset):
         """
 
         # convert root dir to Path
-        if isinstance(root_dir, str):
-            root_dir = Path(root_dir)
-        if not root_dir.exists():
-            root_dir.mkdir(parents=True)
+        if isinstance(train_root_dir, str):
+            train_root_dir = Path(train_root_dir)
+        if not train_root_dir.exists():
+            train_root_dir.mkdir(parents=True)
+
+        if isinstance(test_root_dir, str):
+            test_root_dir = Path(test_root_dir)
+        if not test_root_dir.exists():
+            test_root_dir.mkdir(parents=True)
 
         # List of resolutions needed for dataset object
         resolutions = set(test_resolutions + [train_resolution])
@@ -94,7 +102,8 @@ class MeltingDataset(PTDataset):
             assert res in available_resolutions, f"Error: resolution {res} not available"
             
         # once downloaded/if files already exist, init PTDataset
-        super().__init__(root_dir=root_dir,
+        super().__init__(train_root_dir=train_root_dir,
+                       test_root_dir=test_root_dir,
                        dataset_name="melting",
                        n_train=n_train,
                        n_tests=n_tests,
@@ -115,7 +124,8 @@ def load_melting_dataset(n_train,
     n_tests,
     batch_size,
     test_batch_sizes,
-    data_root = example_data_root,
+    train_data_root = example_data_root,
+    test_data_root = example_data_root,
     train_resolution=50,
     test_resolutions=[50],
     encode_input=True,
@@ -123,7 +133,8 @@ def load_melting_dataset(n_train,
     encoding="channel-wise",
     channel_dim=1,):
 
-    dataset = MeltingDataset(root_dir = data_root,
+    dataset = MeltingDataset(train_root_dir = train_data_root,
+                           test_root_dir=test_data_root,
                            n_train=n_train,
                            n_tests=n_tests,
                            batch_size=batch_size,
