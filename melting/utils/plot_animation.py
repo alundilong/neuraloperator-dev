@@ -63,7 +63,7 @@ def plot_channel_animation(output: torch.Tensor, batch_num: int = 0):
 
 def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: int = 0):
     """
-    Creates an animation comparing predicted and ground truth tensors.
+    Creates an animation comparing predicted and ground truth tensors with dynamic colorbar updates.
 
     Parameters:
     - pred (torch.Tensor): Predicted tensor of shape (Nbatch, Nchannel, Nx, Ny, Nt).
@@ -101,37 +101,58 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
     fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 4, nrows * 4))
 
     ims = []
+    colorbars = []
     for i in range(Nchannel):
-        # Compute vmin/vmax per channel for correct color scaling
-        vmin = np.min(gt_batch[i])  # Min value for this channel
-        vmax = np.max(gt_batch[i])  # Max value for this channel
+        # Initialize with the first time step
+        vmin, vmax = np.min(gt_batch[i, :, :, 0]), np.max(gt_batch[i, :, :, 0])
+        vmin_err, vmax_err = np.min(error_batch[i, :, :, 0]), np.max(error_batch[i, :, :, 0])
 
         # Plot Ground Truth
         ax = axes[i, 0]
         im_gt = ax.imshow(gt_batch[i, :, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
         ax.set_title(f"GT - Channel {i}")
-        cbar_gt = fig.colorbar(im_gt, ax=ax, orientation="vertical")  # Colorbar for GT
+        cbar_gt = fig.colorbar(im_gt, ax=ax, orientation="vertical")
+        colorbars.append(cbar_gt)
 
         # Plot Prediction (Using same vmin/vmax as GT)
         ax = axes[i, 1]
         im_pred = ax.imshow(pred_batch[i, :, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
         ax.set_title(f"Pred - Channel {i}")
-        cbar_pred = fig.colorbar(im_pred, ax=ax, orientation="vertical")  # Colorbar matches GT
+        cbar_pred = fig.colorbar(im_pred, ax=ax, orientation="vertical")
+        colorbars.append(cbar_pred)
 
         # Plot Error (Independent color scale)
         ax = axes[i, 2]
-        im_err = ax.imshow(error_batch[i, :, :, 0], cmap="inferno", animated=True)  # Error in red shades
+        im_err = ax.imshow(error_batch[i, :, :, 0], cmap="inferno", animated=True, vmin=vmin_err, vmax=vmax_err)
         ax.set_title(f"Error - Channel {i}")
-        cbar_err = fig.colorbar(im_err, ax=ax, orientation="vertical")  # Independent colorbar for error
+        cbar_err = fig.colorbar(im_err, ax=ax, orientation="vertical")
+        colorbars.append(cbar_err)
 
         ims.append((im_gt, im_pred, im_err))
 
     # Animation update function
     def update(frame):
         for i in range(Nchannel):
+            # Update vmin/vmax dynamically based on the current frame
+            vmin, vmax = np.min(gt_batch[i, :, :, frame]), np.max(gt_batch[i, :, :, frame])
+            vmin_err, vmax_err = np.min(error_batch[i, :, :, frame]), np.max(error_batch[i, :, :, frame])
+
             ims[i][0].set_array(gt_batch[i, :, :, frame])  # Update GT
             ims[i][1].set_array(pred_batch[i, :, :, frame])  # Update Prediction
             ims[i][2].set_array(error_batch[i, :, :, frame])  # Update Error
+
+            # Update color scales for Ground Truth and Prediction (same scale)
+            ims[i][0].set_clim(vmin, vmax)
+            ims[i][1].set_clim(vmin, vmax)
+
+            # Update color scale for Error independently
+            ims[i][2].set_clim(vmin_err, vmax_err)
+
+            # Update colorbar limits
+            colorbars[i * 3].mappable.set_clim(vmin, vmax)  # GT colorbar
+            colorbars[i * 3 + 1].mappable.set_clim(vmin, vmax)  # Pred colorbar
+            colorbars[i * 3 + 2].mappable.set_clim(vmin_err, vmax_err)  # Error colorbar
+
         return [im for triple in ims for im in triple]  # Flatten the list of images
 
     # Create animation
