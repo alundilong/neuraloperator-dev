@@ -4,12 +4,12 @@ import pandas as pd
 import argparse
 import os
 
-def process_file(input_path, output_path, save_dir, train_split=0.8):
+def process_file(input_path, output_path, save_dir, train_split=0.8, dims=[50,50,11]):
     # Load input data (xx.dat)
     data_x = pd.read_csv(input_path, delimiter=',', header=None).values
 
     # Ensure the number of rows is a multiple of (2500 * 11)
-    num_rows_per_snapshot = 2500 * 11
+    num_rows_per_snapshot = dims[0]*dims[1]*dims[2] 
     # torch.set_printoptions(threshold=10_000_000, linewidth=50)
     #np.set_printoptions(threshold=np.inf, linewidth=200, suppress=True)
     #print(data_x[:num_rows_per_snapshot].reshape(11,50,50,9)[0,:50,:50,2])
@@ -25,7 +25,7 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
     k = values_with_coordinates.shape[1]  # Number of channels (x, y, t + other values)
 
     # Define spatial dimensions
-    d0, d1, d2 = 50, 50, 11
+    d0, d1, d2 = dims[0], dims[1], dims[2]
 
     #print(values_with_coordinates.reshape(num_snapshots, d0, d1, d2, k)[0,:50,:50,0,2])
     # Reshape input data to (batch, k, d0, d1, d2)
@@ -52,6 +52,8 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
     # Convert to PyTorch tensor
     tensor_y = torch.tensor(data_y_reshaped, dtype=torch.float32)
     tensor_y = tensor_y.permute(0, 4, 2, 3, 1)
+    # remove channel 2 which is alpha field
+    tensor_y = torch.cat((tensor_y[:, :2, :, :, :], tensor_y[:, 3:, :, :, :]), dim=1)
 
     # Shuffle dataset (shuffle indices in batch dimension)
     indices = torch.randperm(num_snapshots)  # Generates a shuffled list of indices
@@ -74,11 +76,11 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
     os.makedirs(save_dir_full, exist_ok=True)
     # for full
     # Save train set
-    train_save_path = os.path.join(save_dir_full, "melting_train_50.pt")
+    train_save_path = os.path.join(save_dir_full, f"melting_train_{dims[0]}.pt")
     torch.save({"x": train_x.clone(), "y": train_y.clone()}, train_save_path)
 
     # Save test set
-    test_save_path = os.path.join(save_dir_full, "melting_test_50.pt")
+    test_save_path = os.path.join(save_dir_full, f"melting_test_{dims[0]}.pt")
     torch.save({"x": test_x.clone(), "y": test_y.clone()}, test_save_path)
 
     print(f"Train set saved to: {train_save_path}, shape: {train_x.shape}, {train_y.shape}")
@@ -95,11 +97,11 @@ def process_file(input_path, output_path, save_dir, train_split=0.8):
     train_y, test_y = tensor_y[:train_size], tensor_y[train_size:]
 
     # Save train set
-    train_save_path = os.path.join(save_dir_small, "melting_train_50.pt")
+    train_save_path = os.path.join(save_dir_small, f"melting_train_{dims[0]}.pt")
     torch.save({"x": train_x.clone(), "y": train_y.clone()}, train_save_path)
 
     # Save test set
-    test_save_path = os.path.join(save_dir_small, "melting_test_50.pt")
+    test_save_path = os.path.join(save_dir_small, f"melting_test_{dims[0]}.pt")
     torch.save({"x": test_x.clone(), "y": test_y.clone()}, test_save_path)
 
     print(f"Train set saved to: {train_save_path}, shape: {train_x.shape}, {train_y.shape}")
@@ -112,8 +114,9 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, required=True, help="Path to output y.dat file")
     parser.add_argument("--save_dir", type=str, default=".", help="Directory to save processed data")
     parser.add_argument("--train_split", type=float, default=0.8, help="Proportion of data for training (default: 0.8)")
+    parser.add_argument("--dims", type=int, nargs="+", help="List of dimensions, e.g., 50 50 11")
 
     args = parser.parse_args()
 
     # Process the files
-    process_file(args.input, args.output, args.save_dir, args.train_split)
+    process_file(args.input, args.output, args.save_dir, args.train_split, args.dims)
