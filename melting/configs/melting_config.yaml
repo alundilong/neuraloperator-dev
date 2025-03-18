@@ -8,7 +8,7 @@ default: &DEFAULT
 
   #Distributed computing
   distributed:
-    use_distributed: True
+    use_distributed: False
     wireup_info: 'mpi'
     wireup_store: 'tcp'
     model_parallel_size: 1
@@ -17,14 +17,14 @@ default: &DEFAULT
   # FNO related
   tfno3d:
     data_channels: 9
-    out_channels: 5
-    n_modes_height: 64
-    n_modes_width: 64
-    n_modes_depth: 64
+    out_channels: 4
+    n_modes_height: 6
+    n_modes_width: 6
+    n_modes_depth: 6
     hidden_channels: 32
     positional_embedding: None
     projection_channel_ratio: 2
-    n_layers: 8
+    n_layers: 4
     domain_padding: None #0.078125
     domain_padding_mode: 'one-sided' #symmetric
     fft_norm: 'forward'
@@ -35,41 +35,44 @@ default: &DEFAULT
     preactivation: 0
     use_channel_mlp: 1
     channel_mlp_expansion: 0.5
-    channel_mlp_dropout: 0.2
+    channel_mlp_dropout: 0.0
     factorization: None
     rank: 1.0
     fixed_rank_modes: None
-    dropout: 0.3
     tensor_lasso_penalty: 0.0
     joint_factorization: False
     stabilizer: None # or 'tanh'
+    save_every: 1000
 
   # Optimizer
   opt:
-    n_epochs: 10000
+    n_epochs: 2500
     learning_rate: 5e-4
     training_loss: 'l2'
+    loss_type: 'absolute' #['absolute','relative','absolute','absolute']  # relative, absolute, or a list ['absolute','relative','absolute','absolute']
     weight_decay: 1e-4
     amp_autocast: False
 
     scheduler_T_max: 500 # For cosine only, typically take n_epochs
     scheduler_patience: 5 # For ReduceLROnPlateau only
-    scheduler: 'StepLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau'
+    scheduler: 'OneCycleLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau' OR 'OneCycleLR'
       #scheduler: 'ReduceLROnPlateau'
       #scheduler: 'CosineAnnealingLR'
+      #scheduler: 'StepLR'
     step_size: 500
     gamma: 0.5
+    max_lr: 1e-3
 
   # Dataset related
   data:
-    folder: melting/dataset/small
+    folder: melting/dataset/full
     batch_size: 16
-    n_train: 80
+    n_train: 1200
     train_resolution: 50
-    n_tests: [20]
+    n_tests: [300]
     test_resolutions: [50]
     test_batch_sizes: [16]
-    encode_input: False
+    encode_input: True
     encode_output: True
 
   # Patching
