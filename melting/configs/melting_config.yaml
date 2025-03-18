@@ -46,7 +46,7 @@ default: &DEFAULT
 
   # Optimizer
   opt:
-    n_epochs: 2500
+    n_epochs: 10000
     learning_rate: 5e-4
     training_loss: 'l2'
     loss_type: 'absolute' #['absolute','relative','absolute','absolute']  # relative, absolute, or a list ['absolute','relative','absolute','absolute']
@@ -65,7 +65,7 @@ default: &DEFAULT
 
   # Dataset related
   data:
-    folder: melting/dataset/full
+    folder: melting/dataset/twocircle/full
     batch_size: 16
     n_train: 1200
     train_resolution: 50
