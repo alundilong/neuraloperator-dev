@@ -27,7 +27,8 @@ class PTDataset:
             optional, default is None
         """
     def __init__(self,
-                 root_dir: Union[Path, str],
+                 train_root_dir: Union[Path, str],
+                 test_root_dir: Union[Path, str],
                  dataset_name: str,
                  n_train: int,
                  n_tests: List[int],
@@ -46,8 +47,10 @@ class PTDataset:
 
         Parameters
         ----------
-        root_dir : Union[Path, str]
-            root at which to download data files
+        train_root_dir : Union[Path, str]
+            root at which to download train data files
+        test_root_dir : Union[Path, str]
+            root at which to download test data files
         dataset_name : str
             prefix of pt data files to store/access
         n_train : int
@@ -85,10 +88,15 @@ class PTDataset:
             Defaults to True
         """
         
-        if isinstance(root_dir, str):
-            root_dir = Path(root_dir)
+        if isinstance(train_root_dir, str):
+            train_root_dir = Path(train_root_dir)
         
-        self.root_dir = root_dir
+        self.train_root_dir = train_root_dir
+
+        if isinstance(test_root_dir, str):
+            test_root_dir = Path(test_root_dir)
+
+        self.test_root_dir = test_root_dir
 
         # save dataloader properties for later
         self.batch_size = batch_size
@@ -98,7 +106,7 @@ class PTDataset:
         # Load train data
         
         data = torch.load(
-        Path(root_dir).joinpath(f"{dataset_name}_train_{train_resolution}.pt").as_posix()
+        Path(train_root_dir).joinpath(f"{dataset_name}_train_{train_resolution}.pt").as_posix()
         )
 
         x_train = data["x"].type(torch.float32).clone()
@@ -187,7 +195,7 @@ class PTDataset:
             print(
                 f"Loading test db for resolution {res} with {n_test} samples "
             )
-            data = torch.load(Path(root_dir).joinpath(f"{dataset_name}_test_{res}.pt").as_posix())
+            data = torch.load(Path(test_root_dir).joinpath(f"{dataset_name}_test_{res}.pt").as_posix())
 
             x_test = data["x"].type(torch.float32).clone()
             if channels_squeezed:
