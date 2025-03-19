@@ -158,6 +158,6 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
 
     # Create animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=False)
-    ani.save(f"animation_{sample_num}_{batch_num}.gif", writer=animation.PillowWriter(fps=20))
+    ani.save(f"animation_s{sample_num}_b{batch_num}.gif", writer=animation.PillowWriter(fps=20))
     # Show animation
     plt.show()

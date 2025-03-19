@@ -92,7 +92,9 @@ train_loader, test_loaders, data_processor = load_melting_dataset(train_data_roo
 )
 
 model = get_model(config)
-model = model.from_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
+#model = model.from_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
+model.load_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
+#model = model.load_state_dict(state_dict=config.tfno3d.save_dir)
 
 # convert dataprocessor to an MGPatchingDataprocessor if patching levels > 0
 if config.patching.levels > 0:
@@ -161,6 +163,6 @@ with torch.no_grad():
             print(out.shape)
             print(eval_step_losses)
             #plot_channel_animation(out)
-            compare_tensors_animation(out,sample["y"])
+            compare_tensors_animation(out,sample["y"],batch_num=15)
             break
 
