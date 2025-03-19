@@ -76,9 +76,11 @@ if config.verbose and is_logger:
     pipe.log()
     sys.stdout.flush()
 
-data_folder = get_project_root() / config.data.folder
+train_data_folder = get_project_root() / config.data.train_data_folder
+test_data_folder = get_project_root() / config.data.test_data_folder
 # Loading the Darcy flow dataset
-train_loader, test_loaders, data_processor = load_melting_dataset(data_root = data_folder,
+train_loader, test_loaders, data_processor = load_melting_dataset(train_data_root = train_data_folder,
+    test_data_root = test_data_folder,
     n_train=config.data.n_train,
     batch_size=config.data.batch_size,
     test_resolutions=config.data.test_resolutions,
@@ -212,7 +214,8 @@ trainer.train(
     regularizer=False,
     training_loss=train_loss,
     eval_losses=eval_losses,
-    save_every = config.tfno3d.save_every
+    save_every = config.tfno3d.save_every,
+    save_dir = config.tfno3d.save_dir
 )
 
 if config.wandb.log and is_logger:
