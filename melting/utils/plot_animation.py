@@ -61,7 +61,7 @@ def plot_channel_animation(output: torch.Tensor, batch_num: int = 0):
     # Show animation
     plt.show()
 
-def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: int = 0):
+def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: int = 0, sample_num: int = 0):
     """
     Creates an animation comparing predicted and ground truth tensors with dynamic colorbar updates.
 
@@ -102,6 +102,7 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
 
     ims = []
     colorbars = []
+    title = {0:"p",1:"T",2:"Ux",3:"Uy"}
     for i in range(Nchannel):
         # Initialize with the first time step
         vmin, vmax = np.min(gt_batch[i, :, :, 0]), np.max(gt_batch[i, :, :, 0])
@@ -110,21 +111,21 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
         # Plot Ground Truth
         ax = axes[i, 0]
         im_gt = ax.imshow(gt_batch[i, :, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
-        ax.set_title(f"GT - Channel {i}")
+        ax.set_title(f"GT-{title[i]}")
         cbar_gt = fig.colorbar(im_gt, ax=ax, orientation="vertical")
         colorbars.append(cbar_gt)
 
         # Plot Prediction (Using same vmin/vmax as GT)
         ax = axes[i, 1]
         im_pred = ax.imshow(pred_batch[i, :, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
-        ax.set_title(f"Pred - Channel {i}")
+        ax.set_title(f"Pred-{title[i]}")
         cbar_pred = fig.colorbar(im_pred, ax=ax, orientation="vertical")
         colorbars.append(cbar_pred)
 
         # Plot Error (Independent color scale)
         ax = axes[i, 2]
         im_err = ax.imshow(error_batch[i, :, :, 0], cmap="inferno", animated=True, vmin=vmin_err, vmax=vmax_err)
-        ax.set_title(f"Error - Channel {i}")
+        ax.set_title(f"Error-{title[i]}")
         cbar_err = fig.colorbar(im_err, ax=ax, orientation="vertical")
         colorbars.append(cbar_err)
 
@@ -157,6 +158,6 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
 
     # Create animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=False)
-
+    ani.save(f"animation_{sample_num}_{batch_num}.gif", writer=animation.PillowWriter(fps=20))
     # Show animation
     plt.show()
