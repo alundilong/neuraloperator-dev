@@ -136,6 +136,7 @@ with torch.no_grad():
     for loader_name, test_loader in test_loaders.items():
         n_samples = 0
         for idx, sample in enumerate(test_loader):
+            sample0 = sample["x"].clone()
             if data_processor is not None:
                 sample = data_processor.preprocess(sample)
             else:
@@ -163,6 +164,13 @@ with torch.no_grad():
             print(out.shape)
             print(eval_step_losses)
             #plot_channel_animation(out)
-            compare_tensors_animation(out,sample["y"],batch_num=15)
+            mask = sample0[:,5:6,...]
+            out[:,0:1,...] = out[:,0:1,...]*mask
+            out[:,2:,...] = out[:,2:,...]*mask
+
+            gt = sample["y"].clone()
+            gt[:,0:1,...] = sample["y"][:,0:1,...]*mask
+            gt[:,2:,...] = sample["y"][:,2:,...]*mask
+            compare_tensors_animation(out,gt,batch_num=1)
             break
 
