@@ -84,7 +84,9 @@ target/
 melting/dataset/
 *.out
 *.sh
+*.gif
 neuralop/data/datasets/data/olddata/
-ckpt
+*ckpt
 log
 wandb
+tmp.py
