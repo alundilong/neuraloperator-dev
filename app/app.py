@@ -1,8 +1,9 @@
 import gradio as gr
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import tempfile
 
-# Fake model prediction
 def predict_melting(mask, time_length, dx, dy, dt):
     nx, ny = mask.shape
     nt = int(time_length / dt)
@@ -15,14 +16,37 @@ def predict_melting(mask, time_length, dx, dy, dt):
         simulation[0, 0, :, :, t] = np.clip(simulation[0, 0, :, :, t], 0, 1) * (t / nt)
     return simulation
 
-# Convert sketch to binary mask
-def sketch_to_mask(sketch):
-    if sketch is None:
+def sketch_to_mask(sketch_dict):
+    if sketch_dict is None or "composite" not in sketch_dict:
         return np.zeros((50, 50))
-    # Assume black drawing = porous
+    sketch = np.array(sketch_dict["composite"])  # Extract actual image
     sketch = np.mean(sketch, axis=-1)  # Convert to grayscale
     mask = (sketch < 128).astype(float)
     return mask
+
+def run_simulation(sketch, time_length, dt):
+    dx = dy = 0.1
+    mask = sketch_to_mask(sketch)
+    prediction = predict_melting(mask, time_length, dx, dy, dt)
+    frames = prediction[0, 0]
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(frames[:, :, 0], cmap="plasma", vmin=0, vmax=1)
+    ax.set_title("Melting Progress")
+
+    def update(t):
+        im.set_array(frames[:, :, t])
+        ax.set_title(f"Time Step {t}")
+        return [im]
+
+    ani = FuncAnimation(fig, update, frames=frames.shape[-1], blit=True)
+
+    with tempfile.NamedTemporaryFile(suffix=".gif", delete=False) as f:
+        ani.save(f.name, writer="pillow", fps=5)
+        gif_path = f.name
+
+    plt.close(fig)
+    return gif_path
 
 with gr.Blocks(title="Melting Simulation") as demo:
     gr.Markdown("## 🧊 Draw Porous Structure (Freehand Drawing)")
@@ -42,28 +66,15 @@ with gr.Blocks(title="Melting Simulation") as demo:
             canvas = gr.Sketchpad(
                 label="Draw porous regions (black = porous)",
                 brush=10,
-                height=350,
-                width=350
+                height=250,
+                width=250
             )
-            output_plot = gr.Plot(label="Melting at Final Time Step")
+            output_anim = gr.Image(label="Melting Animation", type="filepath")
 
     def reset_canvas():
-        return np.ones((50, 50, 3), dtype=np.uint8) * 255  # White image
+        return np.ones((50, 50, 3), dtype=np.uint8) * 255  # White
 
     clear_btn.click(fn=reset_canvas, inputs=[], outputs=canvas)
-
-    def run_simulation(sketch, time_length, dt):
-        dx = dy = 0.1
-        mask = sketch_to_mask(sketch)
-        prediction = predict_melting(mask, time_length, dx, dy, dt)
-        final_frame = prediction[0, 0, :, :, -1]
-
-        fig, ax = plt.subplots(figsize=(5, 5))
-        im = ax.imshow(final_frame, cmap="plasma", vmin=0, vmax=1)
-        ax.set_title("Melting Progress at Final Time")
-        plt.colorbar(im, ax=ax)
-        return fig
-
-    run_btn.click(fn=run_simulation, inputs=[canvas, time_length, dt], outputs=output_plot)
+    run_btn.click(fn=run_simulation, inputs=[canvas, time_length, dt], outputs=output_anim)
 
 demo.launch()
