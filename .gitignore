@@ -90,3 +90,4 @@ neuralop/data/datasets/data/olddata/
 log
 wandb
 tmp.py
+*.bk
