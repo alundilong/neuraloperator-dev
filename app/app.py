@@ -26,14 +26,10 @@ def sketch_to_mask(sketch_dict, nx, ny):
     return mask
 
 def run_simulation(sketch, time_length, dt, nx, ny):
-    if time_length is None:
-        time_length = 10
-    if dt is None or dt == 0:
-        dt = 0.2
-    if nx is None:
-        nx = 50
-    if ny is None:
-        ny = 50
+
+    assert time_length is not None, "time_length should not be None"
+    assert dt is not None and dt > 0, "dt should be a positive number"
+    assert nx is not None and ny is not None, "Grid size should not be None"
 
     dx = dy = 0.1
     mask = sketch_to_mask(sketch, nx, ny)
@@ -69,8 +65,8 @@ with gr.Blocks(title="Melting Simulation") as demo:
             nx_slider = gr.Slider(label="Grid Width (nx)", minimum=5, maximum=100, value=50, step=1)
             ny_slider = gr.Slider(label="Grid Height (ny)", minimum=5, maximum=100, value=50, step=1)
 
-            time_length_slider = gr.Slider("Total Time (s)", 1, 100, 10, step=1)
-            dt_slider = gr.Slider("Time Resolution (dt)", 0.1, 1.0, 0.2, step=0.1)
+            time_length_slider = gr.Slider(label="Total Time (s)", minimum=1, maximum=100, value=10, step=1)
+            dt_slider = gr.Slider(label="Time Resolution (dt)", minimum=0.1, maximum=1.0, value=0.2, step=0.1)
 
             run_btn = gr.Button("Run Simulation", variant="primary")
             clear_btn = gr.Button("Clear Drawing")
