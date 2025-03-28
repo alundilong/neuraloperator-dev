@@ -34,6 +34,8 @@ def process_file(input_path, output_path, save_dir, train_split=0.8, dims=[50,50
     # Convert to PyTorch tensor
     tensor_x = torch.tensor(data_x_reshaped, dtype=torch.float32)
     tensor_x = tensor_x.permute(0, 4, 2, 3, 1)
+    # remove channel 6 which is alpha field
+    tensor_x = torch.cat((tensor_x[:, :6, :, :, :], tensor_x[:, 7:, :, :, :]), dim=1)
     #print(tensor_x[0,2,:50,:50,0])
 
     # Load output data (y.dat)
@@ -54,6 +56,7 @@ def process_file(input_path, output_path, save_dir, train_split=0.8, dims=[50,50
     tensor_y = tensor_y.permute(0, 4, 2, 3, 1)
     # remove channel 2 which is alpha field
     tensor_y = torch.cat((tensor_y[:, :2, :, :, :], tensor_y[:, 3:, :, :, :]), dim=1)
+    #tensor_y = tensor_y[:, 1:2, :, :, :]
 
     # Shuffle dataset (shuffle indices in batch dimension)
     indices = torch.randperm(num_snapshots)  # Generates a shuffled list of indices
@@ -108,7 +111,7 @@ def process_file(input_path, output_path, save_dir, train_split=0.8, dims=[50,50
     print(f"Test set saved to: {test_save_path}, shape: {test_x.shape}, {test_y.shape}")
 
 if __name__ == "__main__":
-    # python make_dataset.py --input ~/data/PorousMedia/meltingFoam/DL_workspace/data/debug_runs/x.dat --output ~/data/PorousMedia/meltingFoam/DL_workspace/data/debug_runs/y.dat --save_dir ../dataset/ --train_split 0.80
+    # python make_dataset.py --input ~/data/PorousMedia/meltingFoam/DL_workspace/data/debug_runs/x.dat --output ~/data/PorousMedia/meltingFoam/DL_workspace/data/debug_runs/y.dat --save_dir ../dataset/ --train_split 0.80 --dims 50 50 11
     parser = argparse.ArgumentParser(description="Process x.dat and y.dat into shuffled train/test PyTorch dataset.")
     parser.add_argument("--input", type=str, required=True, help="Path to input x.dat file")
     parser.add_argument("--output", type=str, required=True, help="Path to output y.dat file")
