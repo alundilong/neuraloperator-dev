@@ -2,7 +2,9 @@ import gradio as gr
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from PIL import Image
 import tempfile
+
 
 def predict_melting(mask, time_length, dx, dy, dt, nx, ny):
     nt = int(time_length / dt)
@@ -20,17 +22,11 @@ def sketch_to_mask(sketch_dict, nx, ny):
         return np.zeros((nx, ny))
     sketch = np.array(sketch_dict["composite"])
     sketch = np.mean(sketch, axis=-1)
-    # Resize to simulation resolution if needed
-    sketch_resized = np.array(Image.fromarray(sketch).resize((ny, nx)))  # (width, height)
+    sketch_resized = np.array(Image.fromarray(sketch).resize((ny, nx)))
     mask = (sketch_resized < 128).astype(float)
     return mask
 
 def run_simulation(sketch, time_length, dt, nx, ny):
-
-    assert time_length is not None, "time_length should not be None"
-    assert dt is not None and dt > 0, "dt should be a positive number"
-    assert nx is not None and ny is not None, "Grid size should not be None"
-
     dx = dy = 0.1
     mask = sketch_to_mask(sketch, nx, ny)
     prediction = predict_melting(mask, time_length, dx, dy, dt, nx, ny)
@@ -54,36 +50,35 @@ def run_simulation(sketch, time_length, dt, nx, ny):
     plt.close(fig)
     return gif_path
 
-# Import PIL for resizing
-from PIL import Image
+def init_canvas():
+    white = np.ones((200, 200, 3), dtype=np.uint8) * 255
+    return {
+        "background": white,
+        "layers": [],
+        "composite": white.copy()
+    }
+
 
 with gr.Blocks(title="Melting Simulation") as demo:
-    gr.Markdown("## 🧊 Draw Porous Structure (Freehand Drawing)")
+    gr.Markdown("## 🧊 Draw Porous Structure and Simulate Melting")
 
     with gr.Row():
         with gr.Column():
-            nx_slider = gr.Slider(label="Grid Width (nx)", minimum=5, maximum=100, value=50, step=1)
-            ny_slider = gr.Slider(label="Grid Height (ny)", minimum=5, maximum=100, value=50, step=1)
-
+            nx_slider = gr.Slider(label="Grid Width (nx)", minimum=10, maximum=100, value=50, step=1)
+            ny_slider = gr.Slider(label="Grid Height (ny)", minimum=10, maximum=100, value=50, step=1)
             time_length_slider = gr.Slider(label="Total Time (s)", minimum=1, maximum=100, value=10, step=1)
             dt_slider = gr.Slider(label="Time Resolution (dt)", minimum=0.1, maximum=1.0, value=0.2, step=0.1)
-
             run_btn = gr.Button("Run Simulation", variant="primary")
-            clear_btn = gr.Button("Clear Drawing")
 
         with gr.Column():
             canvas = gr.Sketchpad(
                 label="Draw porous regions (black = porous)",
                 brush=10,
-                height=250,
-                width=250
+                height=300,
+                width=300,
+                value=init_canvas()
             )
             output_anim = gr.Image(label="Melting Animation", type="filepath")
-
-    def reset_canvas(nx, ny):
-        return np.ones((ny, nx, 3), dtype=np.uint8) * 255  # Note: shape is (height, width, channels)
-
-    clear_btn.click(fn=reset_canvas, inputs=[nx_slider, ny_slider], outputs=canvas)
 
     run_btn.click(
         fn=run_simulation,
@@ -91,4 +86,5 @@ with gr.Blocks(title="Melting Simulation") as demo:
         outputs=output_anim
     )
 
-demo.launch()
+if __name__ == "__main__":
+    demo.launch()
