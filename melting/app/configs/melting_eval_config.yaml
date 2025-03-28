@@ -31,10 +31,10 @@ default: &DEFAULT
     joint_factorization: False
     stabilizer: None # or 'tanh'
     save_every: 100
-    save_dir: ../melting/newdataset_ckpt
+    save_dir: melting/newdataset_ckpt
 
   eval:
-    x_min: [0,0,0,0,0,0,0,0]
-    x_max: [1,1,1,1,1,1,1,1]
-    y_min: [0,0,0,0]
-    y_max: [1,1,1,1]
+    x_min: [5.0000e-04, 5.0000e-04, 0.0000e+00, 0.0000e+00, 3.0145e+02, 0.0000e+00, 0.0000e+00, 0.0000e+00]
+    x_max: [9.8500e-02, 9.8500e-02, 2.0000e+03, 0.0000e+00, 3.0145e+02, 1.0000e+00, 0.0000e+00, 0.0000e+00]
+    y_min: [-2.8331e+00,  3.0145e+02, -2.6032e-01, -2.7098e-01]
+    y_max: [2.5645e+00, 3.1115e+02, 2.6364e-01, 2.4940e-01]
