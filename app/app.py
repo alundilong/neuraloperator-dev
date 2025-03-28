@@ -59,32 +59,35 @@ def init_canvas():
     }
 
 
-with gr.Blocks(title="Melting Simulation") as demo:
-    gr.Markdown("## 🧊 Draw Porous Structure and Simulate Melting")
-
-    with gr.Row():
-        with gr.Column():
-            nx_slider = gr.Slider(label="Grid Width (nx)", minimum=10, maximum=100, value=50, step=1)
-            ny_slider = gr.Slider(label="Grid Height (ny)", minimum=10, maximum=100, value=50, step=1)
-            time_length_slider = gr.Slider(label="Total Time (s)", minimum=1, maximum=100, value=10, step=1)
-            dt_slider = gr.Slider(label="Time Resolution (dt)", minimum=0.1, maximum=1.0, value=0.2, step=0.1)
-            run_btn = gr.Button("Run Simulation", variant="primary")
-
-        with gr.Column():
-            canvas = gr.Sketchpad(
-                label="Draw porous regions (black = porous)",
-                brush=10,
-                height=300,
-                width=300,
-                value=init_canvas()
-            )
-            output_anim = gr.Image(label="Melting Animation", type="filepath")
-
-    run_btn.click(
-        fn=run_simulation,
-        inputs=[canvas, time_length_slider, dt_slider, nx_slider, ny_slider],
-        outputs=output_anim
-    )
+def create_app():
+    with gr.Blocks(title="Melting Simulation") as demo:
+        gr.Markdown("## 🧊 Draw Porous Structure and Simulate Melting")
+    
+        with gr.Row():
+            with gr.Column():
+                nx_slider = gr.Slider(label="Grid Width (nx)", minimum=10, maximum=100, value=50, step=1)
+                ny_slider = gr.Slider(label="Grid Height (ny)", minimum=10, maximum=100, value=50, step=1)
+                time_length_slider = gr.Slider(label="Total Time (s)", minimum=1, maximum=100, value=10, step=1)
+                dt_slider = gr.Slider(label="Time Resolution (dt)", minimum=0.1, maximum=1.0, value=0.2, step=0.1)
+                run_btn = gr.Button("Run Simulation", variant="primary")
+    
+            with gr.Column():
+                canvas = gr.Sketchpad(
+                    label="Draw porous regions (black = porous)",
+                    brush=10,
+                    height=300,
+                    width=300,
+                    value=init_canvas()
+                )
+                output_anim = gr.Image(label="Melting Animation", type="filepath")
+    
+        run_btn.click(
+            fn=run_simulation,
+            inputs=[canvas, time_length_slider, dt_slider, nx_slider, ny_slider],
+            outputs=output_anim
+        )
+    return demo
 
 if __name__ == "__main__":
-    demo.launch()
+    app = create_app()
+    app.launch()
