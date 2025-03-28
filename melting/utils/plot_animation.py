@@ -160,9 +160,12 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
 
         return [im for triple in ims for im in triple]  # Flatten the list of images
 
+    tmp_dir="tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+
     # Create animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=False)
-    ani.save(f"animation_s{sample_num}_b{batch_num}.gif", writer=animation.PillowWriter(fps=20))
+    ani.save(f"{tmp_dir}/animation_s{sample_num}_b{batch_num}.gif", writer=animation.PillowWriter(fps=20))
     # Show animation
     plt.show()
 
@@ -275,13 +278,16 @@ def compare_batches_animation(pred: torch.Tensor,
 
         return [im for triple in ims for im in triple[:3]]  # Flatten the list
 
+    tmp_dir="tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+
     # Create and save animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=False)
     fieldname = channel_names[0]
     if prefix is None:
-        ani.save(f"batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
+        ani.save(f"{tmp_dir}/batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
     else:
-        ani.save(f"{prefix}_batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
+        ani.save(f"{tmp_dir}/{prefix}_batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
     #plt.show()
     plt.close()
     return ani
@@ -432,13 +438,16 @@ def compare_batches_velocity_animation(pred_ux: torch.Tensor,
 
     # Create animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=True)
+
+    tmp_dir="tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
     
     # Save animation
     if prefix is None:
-        ani.save(f"batch_comparison_velocity_s{sample_num}.gif", 
+        ani.save(f"{tmp_dir}/batch_comparison_velocity_s{sample_num}.gif", 
             writer=animation.PillowWriter(fps=20))
     else:
-        ani.save(f"{prefix}_batch_comparison_velocity_s{sample_num}.gif", 
+        ani.save(f"{tmp_dir}/{prefix}_batch_comparison_velocity_s{sample_num}.gif", 
             writer=animation.PillowWriter(fps=20))
     
     plt.close()
