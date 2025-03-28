@@ -91,3 +91,6 @@ log
 wandb
 tmp.py
 *.bk
+*.png
+*.jpg
+*.pt
