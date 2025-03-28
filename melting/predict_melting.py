@@ -10,7 +10,8 @@ from neuralop import get_model
 from training.trainer import Trainer
 from losses.mask_data_losses import LpLoss
 from utils.load_data import load_melting_dataset
-from utils.plot_animation import plot_channel_animation,compare_tensors_animation
+from utils.plot_animation import plot_channel_animation,compare_tensors_animation,compare_batches_animation,compare_batches_velocity_animation
+from utils.melting_formula import calculate_alpha
 from neuralop.data.transforms.data_processors import MGPatchingDataProcessor
 from neuralop.training import setup, AdamW
 from neuralop.mpu.comm import get_local_rank
@@ -23,7 +24,7 @@ config_name = "default"
 pipe = ConfigPipeline(
     [
         YamlConfig(
-            "./melting_config_pred.yaml", config_name="default", config_folder="./configs"
+            "./melting_config.yaml", config_name="default", config_folder="./configs"
         ),
         ArgparseConfig(infer_types=True, config_name=None, config_file=None),
         YamlConfig(config_folder="../config"),
@@ -31,6 +32,7 @@ pipe = ConfigPipeline(
 )
 config = pipe.read_conf()
 config_name = pipe.steps[-1].config_name
+config.distributed.use_distributed = False
 
 # Set-up distributed communication, if using
 device, is_logger = setup(config)
@@ -78,23 +80,21 @@ if config.verbose and is_logger:
     sys.stdout.flush()
 
 train_data_folder = get_project_root() / config.data.train_data_folder
-test_data_folder = get_project_root() / config.data.test_data_folder
+test_data_folder = get_project_root() / config.pred_data.test_data_folder
 # Loading the Darcy flow dataset
 train_loader, test_loaders, data_processor = load_melting_dataset(train_data_root = train_data_folder,
     test_data_root = test_data_folder,
     n_train=config.data.n_train,
     batch_size=config.data.batch_size,
-    test_resolutions=config.data.test_resolutions,
+    test_resolutions=config.pred_data.test_resolutions,
     n_tests=config.data.n_tests,
-    test_batch_sizes=config.data.test_batch_sizes,
+    test_batch_sizes=config.pred_data.test_batch_sizes,
     encode_input=config.data.encode_input,
     encode_output=config.data.encode_output,
 )
 
 model = get_model(config)
-#model = model.from_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
 model.load_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
-#model = model.load_state_dict(state_dict=config.tfno3d.save_dir)
 
 # convert dataprocessor to an MGPatchingDataprocessor if patching levels > 0
 if config.patching.levels > 0:
@@ -165,12 +165,31 @@ with torch.no_grad():
             print(eval_step_losses)
             #plot_channel_animation(out)
             mask = sample0[:,5:6,...]
-            out[:,0:1,...] = out[:,0:1,...]*mask
-            out[:,2:,...] = out[:,2:,...]*mask
+            out_prgh = out[:,0:1,...]*mask
+            out_T = out[:,1:2,...]
+            out_Ux = out[:,2:3,...]*mask
+            out_Uy = out[:,3:4,...]*mask
+            out_Umag = torch.sqrt(out_Ux*out_Ux + out_Uy*out_Uy)
+
+            out_alpha = mask*calculate_alpha(out_T,T_l=303.43,T_s=302.43)
 
             gt = sample["y"].clone()
-            gt[:,0:1,...] = sample["y"][:,0:1,...]*mask
-            gt[:,2:,...] = sample["y"][:,2:,...]*mask
-            compare_tensors_animation(out,gt,batch_num=1)
+            gt_prgh = sample["y"][:,0:1,...]*mask
+            gt_T = sample["y"][:,1:2,...]
+            gt_Ux = sample["y"][:,2:3,...]*mask
+            gt_Uy = sample["y"][:,3:4,...]*mask
+            gt_Umag = torch.sqrt(gt_Ux*gt_Ux + gt_Uy*gt_Uy)
+            gt_alpha = mask*calculate_alpha(gt_T,T_l=303.43,T_s=302.43)
+            #gt[:,2:,...] = sample["y"][:,2:,...]*mask
+            #compare_tensors_animation(out,gt,batch_num=30)
+            #prefix="regular_time10_res50"
+            prefix="newdata_case_test_res100_long4000"
+            compare_batches_animation(out_prgh,gt_prgh,sample_num=idx,channel_names={0:"prgh"},prefix=prefix)
+            compare_batches_animation(out_T,gt_T,sample_num=idx,channel_names={0:"T"},prefix=prefix)
+            compare_batches_animation(out_Ux,gt_Ux,sample_num=idx,channel_names={0:"Ux"},prefix=prefix)
+            compare_batches_animation(out_Uy,gt_Uy,sample_num=idx,channel_names={0:"Uy"},prefix=prefix)
+            compare_batches_animation(out_Umag,gt_Umag,sample_num=idx,channel_names={0:"Umag"},prefix=prefix)
+            compare_batches_animation(out_alpha,gt_alpha,sample_num=idx,channel_names={0:"alpha"},prefix=prefix)
+            compare_batches_velocity_animation(out_Ux,out_Uy,gt_Ux,gt_Uy,sample_num=idx,downsample_factor=1,arrow_scale=25,prefix=prefix)
             break
 

@@ -16,15 +16,15 @@ default: &DEFAULT
 
   # FNO related
   tfno3d:
-    data_channels: 9
+    data_channels: 8
     out_channels: 4
-    n_modes_height: 4
-    n_modes_width: 4
-    n_modes_depth: 4
-    hidden_channels: 8
+    n_modes_height: 16
+    n_modes_width: 16
+    n_modes_depth: 16
+    hidden_channels: 64
     positional_embedding: None
     projection_channel_ratio: 2
-    n_layers: 2
+    n_layers: 4
     domain_padding: None #0.078125
     domain_padding_mode: 'one-sided' #symmetric
     fft_norm: 'forward'
@@ -33,7 +33,7 @@ default: &DEFAULT
     implementation: 'factorized'
     separable: 0
     preactivation: 0
-    use_channel_mlp: 0
+    use_channel_mlp: 1
     channel_mlp_expansion: 0.5
     channel_mlp_dropout: 0.0
     factorization: None
@@ -43,22 +43,22 @@ default: &DEFAULT
     joint_factorization: False
     stabilizer: None # or 'tanh'
     save_every: 100
-    save_dir: twocircle_ckpt
+    save_dir: newdataset_ckpt
 
   # Optimizer
   opt:
-    n_epochs: 1000
-    learning_rate: 1e-1
+    n_epochs: 2000
+    learning_rate: 1e-2
     training_loss: 'l2'
     loss_type: 'absolute' #['absolute','relative','absolute','absolute']  # relative, absolute, or a list ['absolute','relative','absolute','absolute']
-    weight_decay: 1e-4
+    weight_decay: 0
     amp_autocast: False
 
-    scheduler_T_max: 500 # For cosine only, typically take n_epochs
+    scheduler_T_max: 2000 # For cosine only, typically take n_epochs
     scheduler_patience: 20 # For ReduceLROnPlateau only
-    scheduler: 'OneCycleLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau' OR 'OneCycleLR'
+    #scheduler: 'OneCycleLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau' OR 'OneCycleLR'
     #scheduler: 'ReduceLROnPlateau'
-    #scheduler: 'CosineAnnealingLR'
+    scheduler: 'CosineAnnealingLR'
     #scheduler: 'StepLR'
     step_size: 500
     gamma: 0.5
@@ -66,14 +66,14 @@ default: &DEFAULT
 
   # Dataset related
   data:
-    train_data_folder: melting/dataset/twocircle/full
-    test_data_folder: melting/dataset/twocircle/full
-    batch_size: 64
-    n_train: 1200
+    train_data_folder: melting/dataset/newdataset/full
+    test_data_folder: melting/dataset/newdataset/full
+    batch_size: 32
+    n_train: 4795
     train_resolution: 50
-    n_tests: [300]
+    n_tests: [1199]
     test_resolutions: [50]
-    test_batch_sizes: [64]
+    test_batch_sizes: [32]
     encode_input: True
     encode_output: True
 
@@ -96,25 +96,32 @@ default: &DEFAULT
 
   resume_tfno3d:
     save_every: 100
-    save_dir: resume_twocircle_ckpt
+    save_dir: resume_newdataset_ckpt
  
   resume_opt:
-    n_epochs: 1000
-    learning_rate: 1e-3
+    n_epochs: 5000
+    learning_rate: 1e-4
     training_loss: 'l2'
     loss_type: 'absolute' #['absolute','relative','absolute','absolute']  # relative, absolute, or a list ['absolute','relative','absolute','absolute']
     weight_decay: 1e-4
     amp_autocast: False
  
-    scheduler_T_max: 500 # For cosine only, typically take n_epochs
+    scheduler_T_max: 5000 # For cosine only, typically take n_epochs
     scheduler_patience: 20 # For ReduceLROnPlateau only
     #scheduler: 'OneCycleLR' # Or 'CosineAnnealingLR' OR 'ReduceLROnPlateau' OR 'OneCycleLR'
-    scheduler: 'ReduceLROnPlateau'
-    #scheduler: 'CosineAnnealingLR'
+    #scheduler: 'ReduceLROnPlateau'
+    scheduler: 'CosineAnnealingLR'
     #scheduler: 'StepLR'
     step_size: 500
     gamma: 0.5
-    max_lr: 1e-1 # For OneCycleLR Only
+    max_lr: 1e-3 # For OneCycleLR Only
  
   pred_data:
-    test_data_folder: melting/dataset/porous/full
+    #test_data_folder: melting/dataset/twocircle/full
+    #test_data_folder: melting/dataset/porous/full
+    #test_data_folder: melting/dataset/runs_long_time10_res50/full
+    #test_data_folder: melting/dataset/regular_time10_res50/full
+    #test_data_folder: melting/dataset/newdataset/full
+    test_data_folder: melting/dataset/newdataset_case_test_res100_long4000/full
+    test_resolutions: [100]
+    test_batch_sizes: [32]
