@@ -169,7 +169,8 @@ def compare_tensors_animation(pred: torch.Tensor, gt: torch.Tensor, batch_num: i
 def compare_batches_animation(pred: torch.Tensor, 
                             gt: torch.Tensor, 
                             sample_num: int = 0,
-                            channel_names: dict = {0: "T"}):
+                            channel_names: dict = {0: "T"},
+                            prefix=None):
     """
     Creates an animation comparing multiple batches side by side, with each row showing one batch's GT, Pred, and Error.
     
@@ -216,9 +217,9 @@ def compare_batches_animation(pred: torch.Tensor,
 
         # For each channel, we'll show the mean across channels (or you could modify to show specific channel)
         # Here I'm showing the mean, but you could modify to show a specific channel
-        pred_mean = np.mean(pred_batch, axis=0)  # (Nx, Ny, Nt)
-        gt_mean = np.mean(gt_batch, axis=0)      # (Nx, Ny, Nt)
-        error_mean = np.mean(error_batch, axis=0) # (Nx, Ny, Nt)
+        pred_mean = pred_batch[0]  # (Nx, Ny, Nt)
+        gt_mean = gt_batch[0]      # (Nx, Ny, Nt)
+        error_mean = error_batch[0] # (Nx, Ny, Nt)
 
         # Get initial min/max values
         vmin, vmax = np.min(gt_mean[:, :, 0]), np.max(gt_mean[:, :, 0])
@@ -227,14 +228,14 @@ def compare_batches_animation(pred: torch.Tensor,
         # Plot Ground Truth
         ax = axes[row, 0]
         im_gt = ax.imshow(gt_mean[:, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
-        ax.set_title(f"Batch {batch_num} - GT (mean)")
+        ax.set_title(f"Batch {batch_num} - GT")
         cbar_gt = fig.colorbar(im_gt, ax=ax)
         colorbars.append(cbar_gt)
 
         # Plot Prediction
         ax = axes[row, 1]
         im_pred = ax.imshow(pred_mean[:, :, 0], cmap="viridis", animated=True, vmin=vmin, vmax=vmax)
-        ax.set_title(f"Batch {batch_num} - Pred (mean)")
+        ax.set_title(f"Batch {batch_num} - Pred")
         cbar_pred = fig.colorbar(im_pred, ax=ax)
         colorbars.append(cbar_pred)
 
@@ -277,7 +278,168 @@ def compare_batches_animation(pred: torch.Tensor,
     # Create and save animation
     ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=False)
     fieldname = channel_names[0]
-    ani.save(f"batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
-    plt.show()
-    #plt.close()
+    if prefix is None:
+        ani.save(f"batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
+    else:
+        ani.save(f"{prefix}_batch_comparison_s{sample_num}_{fieldname}.gif", writer=animation.PillowWriter(fps=20))
+    #plt.show()
+    plt.close()
+    return ani
+
+def compare_batches_velocity_animation(pred_ux: torch.Tensor, 
+                          pred_uy: torch.Tensor,
+                          gt_ux: torch.Tensor,
+                          gt_uy: torch.Tensor,
+                          sample_num: int = 0,
+                          downsample_factor: int = 4,
+                          arrow_scale: float = 1.0, 
+                          prefix=None):
+    """
+    Creates an animation comparing predicted vs ground truth velocity fields with quiver plots.
+    
+    Parameters:
+    - pred_ux, pred_uy: Predicted velocity components (Nbatch, 1, Nx, Ny, Nt)
+    - gt_ux, gt_uy: Ground truth velocity components (same shape as pred)
+    - sample_num: Identifier for saving files
+    - downsample_factor: Reduce arrow density for clearer visualization
+    - arrow_scale: Adjust arrow length scaling
+    
+    Returns:
+    - matplotlib.animation.FuncAnimation object
+    """
+    # Convert to NumPy arrays if needed
+    def to_numpy(tensor):
+        return tensor.detach().cpu().numpy() if isinstance(tensor, torch.Tensor) else tensor
+    
+    pred_ux = to_numpy(pred_ux)
+    pred_uy = to_numpy(pred_uy)
+    gt_ux = to_numpy(gt_ux)
+    gt_uy = to_numpy(gt_uy)
+
+    # Validate shapes
+    if pred_ux.shape != gt_ux.shape or pred_uy.shape != gt_uy.shape:
+        raise ValueError("Predicted and ground truth tensors must have the same shape")
+    
+    Nbatch, _, Nx, Ny, Nt = pred_ux.shape
+    
+    # Create grid for quiver plots
+    x = np.arange(0, Nx, downsample_factor)
+    y = np.arange(0, Ny, downsample_factor)
+    X, Y = np.meshgrid(x, y)
+    
+    batch_nums = np.arange(Nbatch)
+    nrows = len(batch_nums)
+    ncols = 3  # GT, Pred, Error
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols*6, nrows*5))
+    if nrows == 1:
+        axes = axes.reshape(1, -1)
+
+    quivers = []
+    mag_contours = []
+    error_contours = []
+    
+    # Initialize plots
+    for row, batch_num in enumerate(batch_nums):
+        # Get first time step data
+        gt_ux_data = gt_ux[batch_num, 0, :, :, 0]
+        gt_uy_data = gt_uy[batch_num, 0, :, :, 0]
+        pred_ux_data = pred_ux[batch_num, 0, :, :, 0]
+        pred_uy_data = pred_uy[batch_num, 0, :, :, 0]
+        
+        # Compute magnitudes
+        gt_mag = np.sqrt(gt_ux_data**2 + gt_uy_data**2)
+        pred_mag = np.sqrt(pred_ux_data**2 + pred_uy_data**2)
+        error_mag = np.abs(pred_mag - gt_mag)
+        
+        # Downsample for quiver plots
+        gt_ux_down = gt_ux_data[::downsample_factor, ::downsample_factor]
+        gt_uy_down = gt_uy_data[::downsample_factor, ::downsample_factor]
+        pred_ux_down = pred_ux_data[::downsample_factor, ::downsample_factor]
+        pred_uy_down = pred_uy_data[::downsample_factor, ::downsample_factor]
+        
+        # Plot Ground Truth
+        ax = axes[row, 0]
+        im_gt = ax.imshow(gt_mag, cmap='viridis', alpha=0.7)
+        Q_gt = ax.quiver(X, Y, gt_ux_down, gt_uy_down, 
+                         scale=10/arrow_scale, color='red')
+        ax.set_title(f"Batch {batch_num} - GT Velocity")
+        fig.colorbar(im_gt, ax=ax, label='Velocity Magnitude')
+        
+        # Plot Prediction
+        ax = axes[row, 1]
+        im_pred = ax.imshow(pred_mag, cmap='viridis', alpha=0.7)
+        Q_pred = ax.quiver(X, Y, pred_ux_down, pred_uy_down,
+                          scale=10/arrow_scale, color='red')
+        ax.set_title(f"Batch {batch_num} - Pred Velocity")
+        fig.colorbar(im_pred, ax=ax, label='Velocity Magnitude')
+        
+        # Plot Error
+        ax = axes[row, 2]
+        im_err = ax.imshow(error_mag, cmap='inferno')
+        ax.set_title(f"Batch {batch_num} - Magnitude Error")
+        fig.colorbar(im_err, ax=ax, label='Error')
+        
+        quivers.append((Q_gt, Q_pred))
+        mag_contours.append((im_gt, im_pred))
+        error_contours.append(im_err)
+
+    # Animation update function
+    def update(frame):
+        artists = []
+        for row in range(nrows):
+            # Get current frame data
+            gt_ux_frame = gt_ux[row, 0, :, :, frame]
+            gt_uy_frame = gt_uy[row, 0, :, :, frame]
+            pred_ux_frame = pred_ux[row, 0, :, :, frame]
+            pred_uy_frame = pred_uy[row, 0, :, :, frame]
+            
+            # Compute magnitudes
+            gt_mag = np.sqrt(gt_ux_frame**2 + gt_uy_frame**2)
+            pred_mag = np.sqrt(pred_ux_frame**2 + pred_uy_frame**2)
+            error_mag = np.abs(pred_mag - gt_mag)
+            
+            # Downsample for quiver
+            gt_ux_down = gt_ux_frame[::downsample_factor, ::downsample_factor]
+            gt_uy_down = gt_uy_frame[::downsample_factor, ::downsample_factor]
+            pred_ux_down = pred_ux_frame[::downsample_factor, ::downsample_factor]
+            pred_uy_down = pred_uy_frame[::downsample_factor, ::downsample_factor]
+            
+            # Update quiver plots
+            quivers[row][0].set_UVC(gt_ux_down, gt_uy_down)
+            quivers[row][1].set_UVC(pred_ux_down, pred_uy_down)
+            
+            # Update magnitude contours
+            mag_contours[row][0].set_array(gt_mag)
+            mag_contours[row][1].set_array(pred_mag)
+            
+            # Update error plot
+            error_contours[row].set_array(error_mag)
+            
+            # Update color limits
+            vmin, vmax = np.min(gt_mag), np.max(gt_mag)
+            mag_contours[row][0].set_clim(vmin, vmax)
+            mag_contours[row][1].set_clim(vmin, vmax)
+            
+            vmin_err, vmax_err = np.min(error_mag), np.max(error_mag)
+            error_contours[row].set_clim(vmin_err, vmax_err)
+            
+            artists.extend([quivers[row][0], quivers[row][1], 
+                          mag_contours[row][0], mag_contours[row][1],
+                          error_contours[row]])
+        
+        return artists
+
+    # Create animation
+    ani = animation.FuncAnimation(fig, update, frames=Nt, interval=100, blit=True)
+    
+    # Save animation
+    if prefix is None:
+        ani.save(f"batch_comparison_velocity_s{sample_num}.gif", 
+            writer=animation.PillowWriter(fps=20))
+    else:
+        ani.save(f"{prefix}_batch_comparison_velocity_s{sample_num}.gif", 
+            writer=animation.PillowWriter(fps=20))
+    
+    plt.close()
     return ani
