@@ -93,6 +93,12 @@ train_loader, test_loaders, data_processor = load_melting_dataset(train_data_roo
     encode_output=config.data.encode_output,
 )
 
+print(data_processor.in_normalizer.min_val.squeeze())
+print(data_processor.in_normalizer.max_val.squeeze())
+
+print(data_processor.out_normalizer.min_val.squeeze())
+print(data_processor.out_normalizer.max_val.squeeze())
+
 model = get_model(config)
 model.load_checkpoint(save_folder=config.tfno3d.save_dir, save_name="model")
 
