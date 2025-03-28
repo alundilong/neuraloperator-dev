@@ -1,0 +1,40 @@
+default: &DEFAULT
+
+  arch: 'tfno3d'
+
+  # FNO related
+  tfno3d:
+    data_channels: 8
+    out_channels: 4
+    n_modes_height: 16
+    n_modes_width: 16
+    n_modes_depth: 16
+    hidden_channels: 64
+    positional_embedding: None
+    projection_channel_ratio: 2
+    n_layers: 4
+    domain_padding: None #0.078125
+    domain_padding_mode: 'one-sided' #symmetric
+    fft_norm: 'forward'
+    norm: 'group_norm'
+    skip: 'linear'
+    implementation: 'factorized'
+    separable: 0
+    preactivation: 0
+    use_channel_mlp: 1
+    channel_mlp_expansion: 0.5
+    channel_mlp_dropout: 0.0
+    factorization: None
+    rank: 1.0
+    fixed_rank_modes: None
+    tensor_lasso_penalty: 0.0
+    joint_factorization: False
+    stabilizer: None # or 'tanh'
+    save_every: 100
+    save_dir: ../melting/newdataset_ckpt
+
+  eval:
+    x_min: [0,0,0,0,0,0,0,0]
+    x_max: [1,1,1,1,1,1,1,1]
+    y_min: [0,0,0,0]
+    y_max: [1,1,1,1]
